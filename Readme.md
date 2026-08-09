@@ -1,12 +1,16 @@
 <h1 align="center">Hi 👋, I'm Mohammad Taha</h1>
 <h3 align="center">Python & AI Developer | Crafting intelligent models, LLM and smart solutions with Python.</h3>
 
-<p align="left">
-  <span style="font-size: 3.5em; font-weight: bold;">🌐 Connect with me:</span>
-  <a href="https://linkedin.com/in/mohammadtaha-hosseinzadehjami" target="_blank">
-    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" align="center" />
-  </a>
-</p>
+<table border="0">
+  <tr>
+    <td style="border: none;"><h3>🌐 Connect with me:</h3></td>
+    <td style="border: none;">
+      <a href="https://linkedin.com/in/mohammadtaha-hosseinzadehjami" target="_blank">
+        <img src="https://raw.githubusercontent.com/rahuldkjain/github-profile-readme-generator/master/src/images/icons/Social/linked-in-alt.svg" alt="mohammadtaha-hosseinzadehjami" height="30" width="40" />
+      </a>
+    </td>
+  </tr>
+</table>
 
 ---
 
