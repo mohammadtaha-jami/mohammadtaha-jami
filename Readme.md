@@ -2,7 +2,7 @@
 <h3 align="center">Python & AI Developer | Crafting intelligent models, LLM and smart solutions with Python.</h3>
 
 <p align="left">
-  <span style="font-size: 1.5em; font-weight: bold;">🌐 Connect with me:</span>
+  <span style="font-size: 3.5em; font-weight: bold;">🌐 Connect with me:</span>
   <a href="https://linkedin.com/in/mohammadtaha-hosseinzadehjami" target="_blank">
     <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" align="center" />
   </a>
