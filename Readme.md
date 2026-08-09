@@ -4,7 +4,7 @@
 <h3>
   🌐 Connect with me: 
   <a href="https://linkedin.com/in/mohammadtaha-hosseinzadehjami" target="_blank">
-    <img src="https://raw.githubusercontent.com/rahuldkjain/github-profile-readme-generator/master/src/images/icons/Social/linked-in-alt.svg" alt="mohammadtaha-hosseinzadehjami" height="35" width="45" style="vertical-align: middle;" />
+    <img src="https://raw.githubusercontent.com/rahuldkjain/github-profile-readme-generator/master/src/images/icons/Social/linked-in-alt.svg" alt="mohammadtaha-hosseinzadehjami" height="25" width="30" style="vertical-align: middle;" />
   </a>
 </h3>
 
