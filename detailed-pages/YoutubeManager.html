@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — YouTube Channel Manager</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the portfolio green */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 01 — AGI_Project Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Grade Specification</span>
+              <span class="fa-text hidden">مستندات فنی سطح تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: AGI-YTCM-2026-100</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight">
+              <span class="relative inline-block">
+                <span class="relative z-10">Y</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v1</span>
+              </span>OUTUBE CHANNEL MANAGER
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">AGI_Project</span> — a Windows-first desktop automation system that scripts, voices, thumbnails, assembles, and publishes long-form and Shorts video for multiple isolated YouTube channel profiles.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">AGI_Project</span> — یک سیستم اتوماسیون دسکتاپ ویندوز‌محور که اسکریپت‌نویسی، صداگذاری، ساخت تامبنیل، مونتاژ و انتشار ویدیوهای بلند و Shorts را برای چندین پروفایل کانال یوتیوب به‌صورت مجزا انجام می‌دهد.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <a href="https://github.com/WhileTrue0087/AGI_Project" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-brands fa-github"></i>
+              <span class="en-text">Repository</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مخزن کد</span>
+              <span class="font-mono text-xs opacity-70 hidden sm:inline">WhileTrue0087/AGI_Project</span>
+            </a>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-terminal"></i>
+              <span class="en-text">CLI Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط CLI</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v1.0.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production</span></span>
+            <span>OWNER <span class="text-paper font-semibold">Baltazar Team</span></span>
+            <span>DEV <span class="text-paper font-semibold">MohammadTaha Hosseinzadeh</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          YouTube Channel Manager is a <strong class="text-ink">Windows-first desktop automation system</strong> that produces and publishes long-form videos and YouTube Shorts for multiple isolated channel profiles. Operators configure channels through a CustomTkinter GUI; each profile owns its own OAuth credentials, media assets, language/TTS settings, title queues, and a clock-based schedule. There is no application HTTP server and no relational database — persistence is a <strong class="text-ink">file-backed control plane</strong> (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">channels/channels.json</code> plus per-channel JSON and directories). External systems are consumed as outbound APIs (Gemini, YouTube, TTS, Telegram).
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          YouTube Channel Manager یک <strong class="text-ink">سیستم اتوماسیون دسکتاپ ویندوز‌محور</strong> است که ویدیوهای بلند و YouTube Shorts را برای چندین پروفایل کانال مجزا تولید و منتشر می‌کند. اپراتورها از طریق رابط گرافیکی CustomTkinter تنظیمات را انجام می‌دهند؛ هر پروفایل اعتبارنامه OAuth، دارایی‌های رسانه‌ای، تنظیمات زبان/TTS، صف عناوین و برنامه زمانی خاص خود را دارد. هیچ سرور HTTP اپلیکیشنی و هیچ پایگاه‌داده رابطه‌ای وجود ندارد — ماندگاری داده از طریق <strong class="text-ink">فایل‌های کنترل</strong> (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">channels/channels.json</code> به همراه JSON‌های هر کانال) مدیریت می‌شود.
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Pipeline Stages</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مراحل پایپ‌لاین</p>
+            <p class="font-display text-2xl mt-1 text-rust">6</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Persistence</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">JSON</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Video Formats</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">فرمت ویدیو</p>
+            <p class="font-display text-2xl mt-1 text-rust">16:9 / 9:16</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">License</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مجوز</p>
+            <p class="font-display text-2xl mt-1 text-rust">Proprietary</p>
+          </div>
+        </div>
+
+        <!-- Pipeline -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Pipeline (linear, per-channel child processes)</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایپ‌لاین (خطی، فرآیندهای فرزند به ازای هر کانال)</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Script</span> — Google Gemini generates narration/description from a queued title.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">اسکریپت</span> — Google Gemini متن روایت و توضیحات را از یک عنوان صف‌بندی‌شده تولید می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Speech</span> — Vira Logic (Persian) or gTTS (other mapped languages) writes audio.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">گفتار</span> — Vira Logic (فارسی) یا gTTS (سایر زبان‌های نگاشت‌شده) فایل صوتی تولید می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Thumbnail</span> — Pillow + Gemini keyword/color hints, with RTL shaping.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">تامبنیل</span> — Pillow + راهنمایی کلمات کلیدی/رنگ Gemini، با پشتیبانی RTL.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Assemble</span> — MoviePy / OpenCV compose 16:9 long-form or 9:16 Shorts.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">مونتاژ</span> — MoviePy / OpenCV ویدیوی ۱۶:۹ بلند یا ۹:۱۶ Shorts را ترکیب می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">05</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Publish</span> — YouTube Data API v3 upload with per-channel OAuth, optional thumbnail, category, tags.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">انتشار</span> — آپلود از طریق YouTube Data API v3 با OAuth مجزا برای هر کانال، تامبنیل، دسته‌بندی و تگ.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">06</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Observe</span> — Telegram Bot API logs success, quota, and pipeline failures.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">مشاهده</span> — Telegram Bot API موفقیت، مصرف کوتا و خطاهای پایپ‌لاین را لاگ می‌کند.</span></li>
+        </ol>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Channel operator</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Creates profiles, media folders, schedules, and run types (long vs short)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساخت پروفایل، پوشه‌های رسانه، برنامه زمانی و نوع اجرا (بلند یا Short)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Content strategist</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Supplies title lists (script.txt, shortvideo_titles.txt)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تأمین فهرست عناوین (script.txt، shortvideo_titles.txt)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Platform (YouTube)</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Destination for uploads; enforces OAuth, quotas, categories</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مقصد آپلود؛ اجرای OAuth، کوتاها و دسته‌بندی‌ها</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Ops / Baltazar Team</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Receives Telegram alerts; maintains Gemini keys, TTS, proxy</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دریافت هشدارهای Telegram؛ نگهداری کلیدهای Gemini، TTS و پروکسی</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Developer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Owns pipeline modules, OAuth failover, thumbnail/video quality</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئول ماژول‌های پایپ‌لاین، failover OAuth و کیفیت تامبنیل/ویدیو</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tech Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T1</span><span class="text-ink/75 text-sm leading-relaxed en-text">Isolate credentials per channel (and optionally per language) — distinct <code class="text-xs">client_*.json</code> and <code class="text-xs">token*.pickle</code> paths.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">جداسازی اعتبارنامه به ازای هر کانال (و اختیاری برای هر زبان) — مسیرهای مجزا برای <code class="text-xs">client_*.json</code> و <code class="text-xs">token*.pickle</code>.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T2</span><span class="text-ink/75 text-sm leading-relaxed en-text">Deterministic title consumption — <code class="text-xs">used_titles.json</code> prevents duplicate long-form titles.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">مصرف قطعی عنوان — <code class="text-xs">used_titles.json</code> از تکرار عناوین بلند جلوگیری می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T3</span><span class="text-ink/75 text-sm leading-relaxed en-text">Language-aware media — pipeline cwd is <code class="text-xs">channels/&lt;name&gt;/&lt;language&gt;/</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">رسانه زبان‌آگاه — دایرکتوری کاری پایپ‌لاین <code class="text-xs">channels/&lt;name&gt;/&lt;language&gt;/</code> است.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T4</span><span class="text-ink/75 text-sm leading-relaxed en-text">Survive TTS/API flakes — TTS exponential backoff; Gemini key rotation; YouTube backup OAuth.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تحمل خطاهای TTS/API — عقب‌نشینی نمایی TTS؛ چرخش کلیدهای Gemini؛ OAuth پشتیبان YouTube.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T5</span><span class="text-ink/75 text-sm leading-relaxed en-text">Operator visibility — <code class="text-xs">status.json</code> steps plus Telegram events.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">دیدپذیری اپراتور — مراحل <code class="text-xs">status.json</code> به همراه رویدادهای Telegram.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T6</span><span class="text-ink/75 text-sm leading-relaxed en-text">Windows production workstation — Python 3.10+ (validated on 3.13), FFmpeg on PATH.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایستگاه کاری تولید ویندوز — Python 3.10+ (تأیید‌شده روی 3.13)، FFmpeg در PATH.</span></li>
+        </ol>
+
+        <!-- Out of scope -->
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink en-text">Out of Scope (current release)</h3>
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده (نسخه فعلی)</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Multi-user RBAC, cloud-hosted GUI, REST/GraphQL product API, Kubernetes-scale worker fleet, message queues, SQL/NoSQL system of record, analytics dashboards, comment moderation, and live streaming.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">RBAC چند‌کاربره، GUI ابری، REST/GraphQL API، خوشه کارگران مقیاس Kubernetes، صف پیام، سیستم رکورد SQL/NoSQL، داشبوردهای تحلیلی، مدیریت نظرات و پخش زنده.</p>
+
+        <!-- Tech stack -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Tech Stack & Requirements</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری‌ها و پیش‌نیازها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Technology</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Presentation</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Python 3.10+, CustomTkinter</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Dark theme, 1200×800 default</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تم تیره، پیش‌فرض ۱۲۰۰×۸۰۰</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">AI</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Google Gemini 2.5 Flash/Pro</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Key rotation lists; text & thumbnail</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست چرخش کلید؛ متن و تامبنیل</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">TTS</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Vira Logic HTTP; gTTS</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Speaker default "3"</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">گوینده پیش‌فرض "۳"</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Media</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">MoviePy 1.x, OpenCV, Pillow, FFmpeg</td><td class="px-4 py-3 text-ink/60"><span class="en-text">30fps long-form; 1080×1920 Shorts</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">۳۰fps بلند؛ Shorts ۱۰۸۰×۱۹۲۰</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">i18n</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">arabic_reshaper, python-bidi</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Persian/Arabic RTL text</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">متن RTL فارسی/عربی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">YouTube</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">google-api-python-client</td><td class="px-4 py-3 text-ink/60"><span class="en-text">youtube.upload, youtube.force-ssl</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اسکوپ‌های آپلود یوتیوب</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Observability</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Telegram Bot API</td><td class="px-4 py-3 text-ink/60"><span class="en-text">HTML messages, forum thread support</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیام‌های HTML، پشتیبانی از تاپیک فروم</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          The system is a <span class="text-ink font-medium">modular monolith</span> on a single machine: one process for the GUI (operator control plane), one process per pipeline run (<code class="text-xs">main.py --run-once</code> or <code class="text-xs">shortvideo.py</code>), a synchronous subprocess chain for stages, and the <strong>file system as the integration bus</strong>. It is not microservices — modules communicate via CLI arguments, working-directory conventions, on-disk artifacts, and shared Python imports.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          سیستم یک <span class="text-ink font-medium">مونولیت ماژولار</span> روی یک دستگاه است: یک فرآیند برای GUI، یک فرآیند به ازای هر اجرای پایپ‌لاین (<code class="text-xs">main.py --run-once</code> یا <code class="text-xs">shortvideo.py</code>)، زنجیره subprocess همزمان برای مراحل، و <strong>فایل‌سیستم به عنوان باس یکپارچه‌سازی</strong>. این میکروسرویس نیست — ماژول‌ها از طریق آرگومان‌های CLI، قراردادهای دایرکتوری کاری، فایل‌های روی دیسک و importهای مشترک پایتون ارتباط برقرار می‌کنند.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Long-form Sequence</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توالی ویدیوی بلند</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Op as Operator / Scheduler
+    participant Main as main.py --run-once
+    participant Text as text.py
+    participant TTS as tts.py
+    participant Thumb as generate_thumbnail.py
+    participant Vid as video.py
+    participant Up as upload_video.py
+    participant YT as YouTube API
+    participant TG as Telegram
+
+    Op->>Main: launch cwd=channels/name/lang
+    Main->>Main: get_next_title from script.txt vs used_titles.json
+    Main->>Text: subprocess title
+    Text->>Text: Gemini script + description files
+    Main->>Main: save_used_title
+    loop until audio exists or backoff
+        Main->>TTS: subprocess
+        TTS-->>Main: mp3/wav in data/AudioOutput
+    end
+    Main->>Thumb: create_main_thumbnail(title, channel, lang)
+    Main->>Vid: --channel --language
+    Vid-->>Main: stdout FINAL_VIDEO_PATH:...
+    Main->>Up: video_path --language --thumbnail
+    Up->>YT: videos.insert + thumbnail.set
+    Up->>TG: send_video_upload_log
+    Main->>Main: status.json step=completed
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+  subgraph Operator["Operator workstation"]
+    GUI["view/app.py CustomTkinter"]
+    CM["ChannelManager channels.json"]
+    SCH["Background schedule thread"]
+    GUI --> CM
+    GUI --> SCH
+  end
+  subgraph FS["File control plane"]
+    CH["channels/name/"]
+    LANG["language/ script.txt schedule.json used_titles.json main.py"]
+    DEPS["channel-dependencies/ images videos musics thumbnails"]
+    DATA["data/ TextOutput AudioOutput VideoOutput ThumbnailOutput"]
+    CH --> LANG
+    CH --> DEPS
+    LANG --> DATA
+  end
+  subgraph Pipeline["Long-form pipeline process"]
+    T["text.py Gemini"]
+    A["tts.py Vira / gTTS"]
+    TH["generate_thumbnail.py"]
+    V["video.py MoviePy/OpenCV"]
+    U["upload_video.py"]
+    T --> A --> TH --> V --> U
+  end
+  subgraph Ext["External systems"]
+    GEM["Google Gemini 2.5"]
+    YT["YouTube Data API v3"]
+    VIRA["Vira Logic TTS"]
+    TG["Telegram Bot API"]
+  end
+  CM --> FS
+  SCH -->|"Popen main.py --run-once"| Pipeline
+  GUI -->|"Run Channel / Shorts"| Pipeline
+  T --> GEM
+  A --> VIRA
+  TH --> GEM
+  U --> YT
+  U --> TG
+  T --> TG
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Repository Layout</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار مخزن</h3>
+        <div class="relative">
+          <button onclick="copyBlock('ascii-tree', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="ascii-tree">AGI_Project/
+├── view/
+│   └── app.py                          # GUI + ChannelManager (control plane)
+├── main_template.py                    # Copied to each language folder as main.py
+├── reauthenticate_channels.py          # Bulk OAuth repair
+├── analyze_video.py                    # Offline OpenCV inspection
+├── music_timings.json                  # Optional music intro offsets
+├── status.json                         # Root leftover step file
+├── LICENSE                             # Proprietary
+├── README.md
+├── Uploading/
+│   ├── youtube_uploader.py             # YouTubeUploader, upload_to_youtube
+│   ├── upload_video.py                 # CLI publisher
+│   ├── channel_manager.py              # Status/token CLI
+│   └── README.md
+├── src/
+│   ├── text_generator/
+│   │   ├── text.py                     # Gemini scripts, CLI title [language]
+│   │   └── test.py
+│   ├── tts_generator/
+│   │   ├── tts.py                      # SmartTTS
+│   │   ├── tts_api.py                  # Vira HTTP
+│   │   └── config.py                   # Speakers, language maps, tokens
+│   ├── thumbnail_generator/
+│   │   ├── generate_thumbnail.py
+│   │   └── config.py                   # 1280x720 defaults
+│   ├── video_generator/
+│   │   └── video.py                    # Long-form assemble
+│   ├── shortvideo_generator/
+│   │   ├── shortvideo.py
+│   │   └── shortvideo_backup.py
+│   └── logger/
+│       └── bot.py                      # Telegram
+└── channels/                           # Runtime data (gitignored)
+    ├── channels.json                   # Registry
+    └── &lt;channel_name&gt;/
+        ├── client_1.json | client_secrets.json
+        ├── client_secrets_2.json       # Quota failover
+        ├── status.json
+        ├── channel-dependencies/
+        │   ├── images/ videos/ musics/
+        │   ├── thumbnail_dependencies/
+        │   └── character-thumbnail/
+        ├── shortvideo-dependencies/
+        │   ├── shortVideoImages/
+        │   └── shortVideoMusic/
+        └── &lt;language&gt;/               # persian | english | german | ...
+            ├── main.py
+            ├── script.txt
+            ├── shortvideo_titles.txt
+            ├── schedule.json
+            ├── used_titles.json
+            ├── token.pickle
+            ├── status.json
+            └── data/
+                ├── TextOutput/  AudioOutput/  VideoOutput/
+                ├── ThumbnailOutput/  ShortVideoOutput/</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Key Modules</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماژول‌های کلیدی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Entity</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موجودیت</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">ModernYouTubeApp</td><td class="px-4 py-3 text-ink/60">GUI</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Navigation: Create/My/Run/Add/Modify/Settings/Shorts</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ناوبری: ایجاد/کانال‌هام/اجرا/افزودن/ویرایش/تنظیمات/Shorts</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">ChannelManager (view/app.py)</td><td class="px-4 py-3 text-ink/60">Domain service</td><td class="px-4 py-3 text-ink/70"><span class="en-text">CRUD channels, copy assets, emit main.py, schedule, Popen</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">CRUD کانال‌ها، کپی دارایی‌ها، ایجاد main.py، برنامه‌ریزی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">YouTubeUploader</td><td class="px-4 py-3 text-ink/60">Adapter</td><td class="px-4 py-3 text-ink/70"><span class="en-text">InstalledAppFlow, token refresh, backup credentials, videos.insert</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جریان OAuth، تازه‌سازی توکن، اعتبارنامه پشتیبان</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">SmartTTS / Config</td><td class="px-4 py-3 text-ink/60">Adapter</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Language routing Vira vs gTTS</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیریابی زبان: Vira در مقابل gTTS</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">ThumbnailGenerator</td><td class="px-4 py-3 text-ink/60">Domain</td><td class="px-4 py-3 text-ink/70"><span class="en-text">1280×720 JPEG, Gemini keywords, RTL support</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">JPEG 1280×720، کلمات کلیدی Gemini، پشتیبانی RTL</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Logger (bot.py)</td><td class="px-4 py-3 text-ink/60">Adapter</td><td class="px-4 py-3 text-ink/70"><span class="en-text">send_video_upload_log, quota, TTS, title exhaustion events</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارسال لاگ آپلود، کوتا، TTS و اتمام عناوین</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 003 DATABASE SCHEMA ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database Schema" data-title-fa="طرح داده‌ها"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">
+          There is no SQL engine. The system of record is JSON documents plus blob-store folders:
+          the registry <code class="text-xs">channels/channels.json</code>, per-language documents
+          (<code class="text-xs">schedule.json</code>, <code class="text-xs">used_titles.json</code>,
+          <code class="text-xs">status.json</code>, <code class="text-xs">script.txt</code>), and binary/secret
+          files (OAuth JSON, <code class="text-xs">token.pickle</code>, media copies). Concurrency is best-effort
+          — no transactions or foreign-key enforcement.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          هیچ موتور SQL وجود ندارد. سیستم رکورد، مجموعه‌ای از اسناد JSON و پوشه‌های بلاب است:
+          رجیستری <code class="text-xs">channels/channels.json</code>، اسناد هر زبان
+          (<code class="text-xs">schedule.json</code>، <code class="text-xs">used_titles.json</code>،
+          <code class="text-xs">status.json</code>، <code class="text-xs">script.txt</code>)، و فایل‌های
+          باینری/محرمانه (OAuth JSON، <code class="text-xs">token.pickle</code>، کپی‌های رسانه). همزمانی
+          best-effort است — هیچ تراکنش یا محدودیت foreign-key وجود ندارد.
+        </p>
+
+        <div id="db-filters" class="flex flex-wrap gap-2 mb-5"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Field</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فیلد</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت‌ها</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 004 API REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / CLI Reference" data-title-fa="مرجع API و CLI"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          The product does not expose an HTTP application API. Interfaces are CLI contracts, Python callables, and outbound HTTP to vendors. Status handling lives inside adapters, not a public REST layer.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          محصول هیچ HTTP API اپلیکیشنی ارائه نمی‌دهد. رابط‌ها شامل قراردادهای CLI، callable‌های پایتون و HTTP خروجی به vendor‌ها هستند. مدیریت وضعیت داخل آداپتورها است، نه در یک لایه REST عمومی.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CLI Catalog</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست CLI</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Interface</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Command</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Purpose</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70">GUI</td><td class="px-4 py-3 font-mono text-xs text-rust">python view/app.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Operator console</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کنسول اپراتور</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70">Long-form</td><td class="px-4 py-3 font-mono text-xs text-rust">python main.py [--run-once]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">cwd = language folder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">cwd = پوشه زبان</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70">Text</td><td class="px-4 py-3 font-mono text-xs text-rust">python src/text_generator/text.py "&lt;title&gt;" [lang]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">--show-info, --test-gemini</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تولید اسکریپت با Gemini</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70">TTS</td><td class="px-4 py-3 font-mono text-xs text-rust">python src/tts_generator/tts.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Infers channel/language from cwd</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استنتاج کانال/زبان از cwd</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70">Video</td><td class="px-4 py-3 font-mono text-xs text-rust">python src/video_generator/video.py --channel --language</td><td class="px-4 py-3 text-ink/70"><span class="en-text">--fps, --num_images options</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">گزینه‌های --fps، --num_images</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70">Shorts</td><td class="px-4 py-3 font-mono text-xs text-rust">python src/shortvideo_generator/shortvideo.py --channel --language</td><td class="px-4 py-3 text-ink/70"><span class="en-text">9:16 pipeline + upload</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایپ‌لاین ۹:۱۶ + آپلود</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70">Upload</td><td class="px-4 py-3 font-mono text-xs text-rust">python Uploading/upload_video.py [VIDEO] [--channel] [--language] [--thumbnail]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Publisher CLI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتشار ویدیو</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/70">Channel ops</td><td class="px-4 py-3 font-mono text-xs text-rust">python Uploading/channel_manager.py ACTION [--channel]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">list | start | stop | status | check | token | refresh</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت کانال و توکن</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-ink/60 text-sm mb-10 en-text">Process exit codes: <code class="text-xs">0</code> success, non-zero abort. TTS: <code class="text-xs">sys.exit(0 if success else 1)</code>.</p>
+        <p class="text-ink/60 text-sm mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;">کد خروج فرآیند: <code class="text-xs">0</code> موفق، غیرصفر خطا. TTS: <code class="text-xs">sys.exit(0 if success else 1)</code>.</p>
+
+        <!-- Upload CLI detail -->
+        <div class="space-y-10">
+          <div>
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-amber/15 text-amber border border-amber/30 rounded-md px-2.5 py-1">CLI</span>
+              <code class="font-mono text-sm text-ink">Uploading/upload_video.py</code>
+            </div>
+            <div class="relative mb-4">
+              <button onclick="copyBlock('upload-cmd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="upload-cmd">python Uploading/upload_video.py "channels/my_channel/persian/data/VideoOutput/out.mp4" \
+  --channel "my_channel" --language "persian" --thumbnail "path/to/thumb.jpg"</code></pre>
+            </div>
+            <div class="relative">
+              <p class="font-mono text-[10px] uppercase tracking-widest text-ink/40 mb-1.5">Python signature</p>
+              <pre class="bg-charcoal rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="py-upload-sig">upload_to_youtube(
+    video_path,
+    title,
+    description="",
+    tags=None,
+    category_id="22",
+    privacy_status="private",
+    channel_name=None,
+    language=None,
+    base_dir=None,
+    thumbnail_path=None,
+) -> str | None</code></pre>
+            </div>
+          </div>
+
+          <!-- Stdout contract -->
+          <div class="pt-8 border-t border-ink/10">
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-sage/15 text-sage border border-sage/30 rounded-md px-2.5 py-1">STDOUT</span>
+              <code class="font-mono text-sm text-ink">FINAL_VIDEO_PATH:&lt;path&gt;</code>
+            </div>
+            <p class="text-sm text-ink/65 en-text">The video generator's stdout contract — the line prefix <code class="text-xs">FINAL_VIDEO_PATH:</code> carries the path consumed by <code class="text-xs">main.py</code> to hand off to the uploader.</p>
+            <p class="text-sm text-ink/65 fa-text hidden" style="font-family:'El Messiri',sans-serif;">قرارداد stdout مولد ویدیو — پیشوند <code class="text-xs">FINAL_VIDEO_PATH:</code> مسیری را حمل می‌کند که <code class="text-xs">main.py</code> آن را به آپلودر تحویل می‌دهد.</p>
+          </div>
+
+          <!-- Channel manager -->
+          <div class="pt-8 border-t border-ink/10">
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-rust/15 text-rust border border-rust/30 rounded-md px-2.5 py-1">CLI</span>
+              <code class="font-mono text-sm text-ink">Uploading/channel_manager.py ACTION</code>
+            </div>
+            <div class="overflow-x-auto rounded-xl border border-ink/10">
+              <table class="w-full text-left border-collapse min-w-[420px]">
+                <thead><tr class="bg-charcoal text-paper">
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Action</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">--channel</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Effect</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اثر</span></th>
+                </tr></thead>
+                <tbody class="bg-charcoal2 text-sm">
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">list</td><td class="px-4 py-3 text-ink/60">no</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Print channels</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمایش کانال‌ها</span></td></tr>
+                  <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">start</td><td class="px-4 py-3 text-ink/60">yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Write status=running</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوشتن status=running</span></td></tr>
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">stop</td><td class="px-4 py-3 text-ink/60">yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Write status=idle</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوشتن status=idle</span></td></tr>
+                  <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">status</td><td class="px-4 py-3 text-ink/60">yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Print normalized status</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمایش وضعیت نرمال‌شده</span></td></tr>
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">check</td><td class="px-4 py-3 text-ink/60">yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Required files present</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بررسی فایل‌های ضروری</span></td></tr>
+                  <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">token</td><td class="px-4 py-3 text-ink/60">yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Token health check</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بررسی سلامت توکن</span></td></tr>
+                  <tr><td class="px-4 py-3 font-mono text-rust">refresh</td><td class="px-4 py-3 text-ink/60">yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Refresh if possible</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تازه‌سازی در صورت امکان</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="text-ink/60 text-sm mt-3 en-text">Token status enum: <code class="text-xs">valid</code>, <code class="text-xs">expired_refreshable</code>, <code class="text-xs">expired_no_refresh</code>, <code class="text-xs">expiring_soon</code>, <code class="text-xs">missing</code>, <code class="text-xs">invalid</code>, <code class="text-xs">error</code>.</p>
+            <p class="text-ink/60 text-sm mt-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">وضعیت توکن: <code class="text-xs">valid</code>، <code class="text-xs">expired_refreshable</code>، <code class="text-xs">expired_no_refresh</code>، <code class="text-xs">expiring_soon</code>، <code class="text-xs">missing</code>، <code class="text-xs">invalid</code>، <code class="text-xs">error</code>.</p>
+          </div>
+
+          <!-- Vendor APIs -->
+          <div class="pt-8 border-t border-ink/10">
+            <h3 class="font-display text-lg mb-4 text-ink en-text">Outbound Vendor APIs</h3>
+            <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">API‌های خروجی به Vendor‌ها</h3>
+            <div class="overflow-x-auto rounded-xl border border-ink/10">
+              <table class="w-full text-left border-collapse min-w-[560px]">
+                <thead><tr class="bg-charcoal text-paper">
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Vendor</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Endpoint</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Auth</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Notes</th>
+                </tr></thead>
+                <tbody class="bg-charcoal2 text-sm">
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Google Gemini</td><td class="px-4 py-3 text-ink/70">HTTPS POST via genai.GenerativeModel</td><td class="px-4 py-3 text-ink/70">API key (rotated)</td><td class="px-4 py-3 text-ink/70">gemini-2.5-flash primary, gemini-2.5-pro for thumbnails</td></tr>
+                  <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">YouTube Data API v3</td><td class="px-4 py-3 text-ink/70">videos.insert (resumable), thumbnails.set</td><td class="px-4 py-3 text-ink/70">OAuth 2.0</td><td class="px-4 py-3 text-ink/70">youtube.upload, youtube.force-ssl scopes</td></tr>
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Vira Logic TTS</td><td class="px-4 py-3 text-ink/70">POST /TextToSpeech/v1/speech-synthesys</td><td class="px-4 py-3 text-ink/70">JWT</td><td class="px-4 py-3 text-ink/70">partai.gw.isahab.ir — Persian TTS</td></tr>
+                  <tr><td class="px-4 py-3 font-mono text-rust">Telegram Bot API</td><td class="px-4 py-3 text-ink/70">POST /bot&lt;token&gt;/sendMessage</td><td class="px-4 py-3 text-ink/70">Bot token</td><td class="px-4 py-3 text-ink/70">HTML text, message_thread_id, 10s timeout</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration" data-title-fa="پیکربندی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">All secrets must be moved to environment variables. Currently several are hardcoded — critical security hardening required before shared deployment.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">همه اسرار باید به متغیرهای محیطی منتقل شوند. در حال حاضر برخی hardcode هستند — سخت‌شدن امنیتی پیش از استقرار مشترک الزامی است.</p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[640px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Required</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ضروری</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Default</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">GEMINI_API_KEY</td><td class="px-4 py-3 text-amber font-semibold">Yes</td><td class="px-4 py-3 font-mono text-xs text-ink/60">hardcoded list</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Single key or GEMINI_API_KEYS CSV for rotation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلید واحد یا CSV برای چرخش</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">HTTP_PROXY / HTTPS_PROXY</td><td class="px-4 py-3 text-ink/50">No</td><td class="px-4 py-3 font-mono text-xs text-ink/60">127.0.0.1:2080</td><td class="px-4 py-3 text-ink/70"><span class="en-text">For filtered/corporate networks</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">برای شبکه‌های محدودشده</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">TELEGRAM_BOT_TOKEN</td><td class="px-4 py-3 text-ink/50">No</td><td class="px-4 py-3 font-mono text-xs text-ink/60">hardcoded</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Empty = disable Telegram logs</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خالی = غیرفعال کردن لاگ Telegram</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">TELEGRAM_CHAT_ID</td><td class="px-4 py-3 text-ink/50">No</td><td class="px-4 py-3 font-mono text-xs text-ink/60">hardcoded</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Forum group chat ID</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شناسه گروه فروم</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">TELEGRAM_THREAD_ID</td><td class="px-4 py-3 text-ink/50">No</td><td class="px-4 py-3 font-mono text-xs text-ink/60">20637</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Forum topic thread</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موضوع تاپیک فروم</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">VIRA_TTS_TOKEN</td><td class="px-4 py-3 text-amber font-semibold"><span class="en-text">If Persian</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اگر فارسی</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">hardcoded JWT</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Rotate independently of git</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستقل از git چرخش دهید</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">VIRA_TTS_ENDPOINT</td><td class="px-4 py-3 text-ink/50">No</td><td class="px-4 py-3 font-mono text-xs text-ink/60">isahab.ir URL</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Override vendor URL</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جایگزینی URL vendor</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-ink">PYTHONIOENCODING</td><td class="px-4 py-3 text-ink/50">No</td><td class="px-4 py-3 font-mono text-xs text-ink/60">utf-8</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Windows console encoding fix</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رفع مشکل encoding کنسول ویندوز</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Sample .env</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه .env</h3>
+        <div class="relative">
+          <button onclick="copyBlock('env-sample', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="env-sample">GEMINI_API_KEY=
+HTTP_PROXY=http://127.0.0.1:2080
+HTTPS_PROXY=http://127.0.0.1:2080
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+TELEGRAM_THREAD_ID=
+VIRA_TTS_TOKEN=
+VIRA_TTS_ENDPOINT=https://partai.gw.isahab.ir/TextToSpeech/v1/speech-synthesys</code></pre>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Installation (Windows)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نصب (ویندوز)</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('install-cmd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="install-cmd">git clone https://github.com/WhileTrue0087/AGI_Project.git
+cd AGI_Project
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install customtkinter python-dotenv google-generativeai google-genai `
+  google-api-python-client google-auth-oauthlib google-auth-httplib2 `
+  moviepy opencv-python pillow numpy gtts requests httpx psutil `
+  arabic-reshaper python-bidi
+python view/app.py</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Docker Worker (Target — Not Shipped)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Docker Worker (هدف — هنوز ارائه نشده)</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('dockerfile', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="dockerfile">FROM python:3.12-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY src ./src
+COPY Uploading ./Uploading
+COPY main_template.py .
+# Mount channels/ and .env at runtime; never bake secrets
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "src/video_generator/video.py", "--help"]</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD (Proposed)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">CI/CD (پیشنهادی)</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto">
+          <pre class="mermaid">
+flowchart LR
+    A[Push to main] --> B[Lint and Compile]
+    B --> C[Unit Tests]
+    C --> D[Build Image]
+    D --> E[Push to Registry]
+    E --> F[Deploy Staging]
+    F --> G{Smoke Tests?}
+    G -- Yes --> H[Deploy Production]
+    G -- No --> I[Rollback and Alert]
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Workstation Setup Checklist</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چک‌لیست راه‌اندازی ایستگاه کاری</h3>
+        <ol class="space-y-2 max-w-2xl en-text">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">1.</span>Enable YouTube Data API v3 in Google Cloud Console.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">2.</span>Create Desktop OAuth client; download JSON → browse in GUI (becomes <code class="text-xs">client_1.json</code>).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">3.</span>First upload opens browser; pickle stored under language dir.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">4.</span>Provision second client for quota failover (<code class="text-xs">client_secrets_2.json</code>).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">5.</span>Install FFmpeg and add to system PATH.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">6.</span>Backup: <code class="text-xs">channels.json</code>, OAuth JSON, <code class="text-xs">token.pickle</code>, <code class="text-xs">script.txt</code>, <code class="text-xs">used_titles.json</code>.</li>
+        </ol>
+        <ol class="space-y-2 max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۱.</span>فعال‌سازی YouTube Data API v3 در Google Cloud Console.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۲.</span>ایجاد OAuth client نوع Desktop؛ دانلود JSON و مرور در GUI (تبدیل به <code class="text-xs">client_1.json</code>).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۳.</span>اولین آپلود مرورگر را باز می‌کند؛ pickle در دایرکتوری زبان ذخیره می‌شود.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۴.</span>آماده‌سازی کلاینت دوم برای failover کوتا (<code class="text-xs">client_secrets_2.json</code>).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۵.</span>نصب FFmpeg و اضافه‌کردن به PATH سیستم.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۶.</span>پشتیبان‌گیری از: <code class="text-xs">channels.json</code>، OAuth JSON، <code class="text-xs">token.pickle</code>، <code class="text-xs">script.txt</code>، <code class="text-xs">used_titles.json</code>.</li>
+        </ol>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; FAQ" data-title-fa="امنیت و سوالات متداول"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Security Findings</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">یافته‌های امنیتی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">ID</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Issue</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مشکل</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Risk</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ریسک</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Required action</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اقدام لازم</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">S1</td><td class="px-4 py-3 text-ink/80"><span class="en-text">API keys / JWT / bot token in git</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلید API / JWT / توکن bot در git</span></td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">CRITICAL</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Move to env/secret store; rotate all keys</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتقال به env؛ چرخش همه کلیدها</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">S2</td><td class="px-4 py-3 text-ink/80"><span class="en-text">token.pickle on disk unprotected</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">token.pickle روی دیسک بدون حفاظت</span></td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">CRITICAL</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">NTFS ACLs; exclude from untrusted backups</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ACL NTFS؛ حذف از پشتیبان‌های نامعتمد</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">S3</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Pickle deserialization — code exec risk</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">deserialization Pickle — خطر اجرای کد</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Restrict write ACL; consider JSON token storage</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدود کردن ACL نوشتن؛ ذخیره JSON</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">S4</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Broad 403 → "quota" heuristic</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تشخیص گسترده ۴۰۳ به عنوان "کوتا"</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Parse Google error JSON reason field</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تجزیه فیلد reason خطای JSON گوگل</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">S5</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Proxy always-on in logger</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پروکسی همیشه روشن در logger</span></td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">LOW</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Make proxy opt-in via env</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اختیاری کردن پروکسی از طریق env</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">S6</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Proprietary code on GitHub</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کد اختصاصی روی GitHub</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Keep repo private; LICENSE already proprietary</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مخزن خصوصی نگه دارید؛ LICENSE اختصاصی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Error Handling Matrix</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماتریس مدیریت خطا</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stage</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرحله</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Retry</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تلاش مجدد</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Operator signal</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سیگنال اپراتور</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Text / Gemini</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Key rotation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">چرخش کلید</span></td><td class="px-4 py-3 text-ink/70">send_api_quota_error_log</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">TTS</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Exponential backoff 10s→cap 300s</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">backoff نمایی ۱۰s تا سقف ۳۰۰s</span></td><td class="px-4 py-3 text-ink/70">send_tts_error_log</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Thumbnail</td><td class="px-4 py-3 text-ink/70"><span class="en-text">None — fails pipeline</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ندارد — پایپ‌لاین متوقف می‌شود</span></td><td class="px-4 py-3 text-ink/70">status: thumbnail generation failed</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Upload</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Backup OAuth once on 403</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">یکبار OAuth پشتیبان روی ۴۰۳</span></td><td class="px-4 py-3 text-ink/70">send_upload_error_log</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust"><span class="en-text">Titles exhausted</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عناوین تمام‌شده</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Skip slot</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رد کردن slot</span></td><td class="px-4 py-3 text-ink/70">send_title_exhaustion_log</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — AGI_Project — Baltazar Team · MohammadTaha Hosseinzadeh · © 2026 All rights reserved.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — AGI_Project — تیم بالتازار · محمدطاها حسین‌زاده · © ۱۴۰۵ تمامی حقوق محفوظ است.</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    // Show/hide text
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    // Update tab titles from data attributes
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    // Rebuild tab labels
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    // Update back button
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۱ — مستندات AGI_Project';
+      if(tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 01 — AGI_Project Documentation';
+      if(tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    // Update url param without reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  // ---------------------------------------------------------------
+  // Back button
+  // ---------------------------------------------------------------
+  function goBack() {
+    // Always return to the main portfolio page, preserving the current language
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  // ---------------------------------------------------------------
+  // Chapter header injector
+  // ---------------------------------------------------------------
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    const titleFa = el.dataset.titleFa || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',          titleFa: 'صفحه جلد',          icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',      titleFa: 'معرفی سیستم',        icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',titleFa: 'معماری و طراحی',     icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database Schema',      titleFa: 'طرح داده‌ها',         icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API / CLI Reference',  titleFa: 'مرجع API و CLI',     icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',        titleFa: 'پیکربندی',           icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',  titleFa: 'استقرار و DevOps',   icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & FAQ',       titleFa: 'امنیت و سوالات',     icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'channels.json (Channel)', fields: [
+      ['(key)', 'string', 'Unique; filesystem-safe', 'Channel name / directory name'],
+      ['client_secret', 'string path', 'May be empty if only client_N set', 'Legacy primary OAuth path'],
+      ['client_1, client_2, …', 'string path', 'Files must exist at runtime', 'GUI-copied OAuth files'],
+      ['images_folder / videos_folder / music_folder', 'string path', 'Directory', 'Copied stills / B-roll / beds'],
+      ['thumbnail_dependencies', 'string path | null', 'Optional', 'Fonts/overlays'],
+      ['text_file', 'string path', 'UTF-8', 'Default language script.txt'],
+      ['main_py', 'string path', 'Generated', 'Default language runner'],
+      ['category', 'string', 'Must map in CATEGORY_NAME_TO_ID', 'YouTube category name'],
+      ['speaker', 'string', 'Default "3"', 'TTS speaker id'],
+      ['created_at', 'ISO-8601 string', 'Required on create', 'Audit'],
+      ['last_run', 'ISO-8601 | null', 'Nullable', 'Last execution'],
+      ['status', 'string', 'Operational; mirrored in status.json', 'idle / running / …'],
+      ['scheduled_runs', 'array', 'See scheduled_runs[]', 'GUI schedule entries'],
+      ['languages', 'array', '≥1', 'Language profiles'],
+      ['short_video', 'object', 'Optional', 'Shorts asset pointers'],
+    ]},
+    { table: 'scheduled_runs[]', fields: [
+      ['run_time', 'string', 'Parsed to [H, M] for schedule.json', '"HH:MM" 24h'],
+      ['timeline_minutes', 'string/int', 'Not a DB FK', 'UI spacing hint'],
+      ['scheduled_at', 'ISO-8601', 'Required', 'When queued'],
+      ['status', 'string', 'Soft state', 'e.g. scheduled'],
+      ['language', 'string', 'Must exist', 'Target language folder'],
+      ['run_type', 'string', 'longVideo | short', 'Drives which process launches'],
+    ]},
+    { table: 'languages[]', fields: [
+      ['language', 'string', 'persian, english, german, arabic, turkish, russian, italian, french, indonesian, spanish, indian, …', 'Folder name'],
+      ['text_file', 'path', 'UTF-8 lines', 'Titles'],
+      ['client_secret', 'path', 'Legacy', 'Optional override'],
+      ['main_py', 'path', 'Copied from template', 'Runner'],
+      ['tags', 'string[]', 'Per language', 'YouTube tags'],
+      ['created_at', 'ISO-8601', 'Required', 'Audit'],
+    ]},
+    { table: 'short_video (on channel)', fields: [
+      ['images_folder', 'path', 'Copied', 'shortvideo-dependencies/shortVideoImages'],
+      ['music_folder', 'path', 'Copied', 'shortVideoMusic'],
+      ['text_file', 'path', 'Copied', '<lang>/shortvideo_titles.txt'],
+      ['tags', 'string[]', 'Optional', 'Upload tags'],
+      ['language', 'string', 'Required', 'Shorts language'],
+      ['created_at', 'ISO-8601', 'Required', 'Audit'],
+      ['status', 'string', 'Soft', 'e.g. ready'],
+    ]},
+    { table: 'schedule.json', fields: [
+      ['times', 'int[][]', '0–23, 0–59; consumed by main.py loop', '[hour, minute] pairs'],
+    ]},
+    { table: 'used_titles.json', fields: [
+      ['used', 'string[]', 'Dedup on English "en" field when parseable', 'Consumed titles, often {"en": "..."} JSON strings'],
+    ]},
+    { table: 'status.json (channel or language)', fields: [
+      ['status', 'string', "Upload auto-detect uses 'running'", 'idle | running | unknown | error'],
+      ['last_updated', 'ISO-8601', 'Optional', 'CLI writer'],
+      ['step', 'string', 'e.g. "start generating text", "completed"', 'Pipeline phase'],
+      ['timestamp', 'ISO-8601', 'Required when using step form', 'main.py update_status'],
+    ]},
+    { table: 'OAuth / token files', fields: [
+      ['client_secrets.json', 'Google OAuth client', 'YouTube Data API enabled', 'Installed-app credentials'],
+      ['token.pickle', 'pickle Credentials', 'Language dir preferred', 'User grant + refresh'],
+      ['*_2 variants', 'same', 'Used by YouTubeUploader', 'Quota failover'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'GUI starts but Gemini fails — what to check?',
+      qFa: 'GUI اجرا می‌شود اما Gemini خطا می‌دهد — چه باید بررسی کرد؟',
+      aEn: 'Confirm outbound HTTPS is reachable (or a working proxy on port 2080). Rotate/replace Gemini API keys — stop using keys that were ever committed to git.',
+      aFa: 'اطمینان حاصل کنید HTTPS خروجی قابل دسترس است (یا پروکسی روی پورت ۲۰۸۰). کلیدهای Gemini را بچرخانید/جایگزین کنید — از کلیدهایی که به git commit شده‌اند استفاده نکنید.',
+    },
+    {
+      qEn: 'Upload says missing client_secrets.json',
+      qFa: 'آپلود می‌گوید client_secrets.json وجود ندارد',
+      aEn: 'The GUI writes client_1.json. Copy or rename it to client_secrets.json in the channel root, or patch the uploader to read client_1.',
+      aFa: 'GUI فایل client_1.json را می‌نویسد. آن را به client_secrets.json در root کانال کپی یا نام‌گذاری مجدد کنید، یا uploader را اصلاح کنید تا client_1 را بخواند.',
+    },
+    {
+      qEn: 'Token expired / browser opens every time?',
+      qFa: 'توکن منقضی شده / هر بار مرورگر باز می‌شود؟',
+      aEn: 'expired_no_refresh → delete the pickle and upload once manually. expired_refreshable → run: python Uploading/channel_manager.py refresh --channel NAME',
+      aFa: 'expired_no_refresh → pickle را حذف کرده و یکبار دستی آپلود کنید. expired_refreshable → اجرا کنید: python Uploading/channel_manager.py refresh --channel NAME',
+    },
+    {
+      qEn: 'TTS loops forever — how to fix?',
+      qFa: 'TTS به حلقه بی‌نهایت می‌افتد — چطور رفع کنم؟',
+      aEn: 'Check Vira JWT validity, network connectivity, and write permissions on data/AudioOutput. The exponential backoff caps wait-time but not attempt count.',
+      aFa: 'اعتبار JWT Vira، اتصال شبکه و مجوز نوشتن در data/AudioOutput را بررسی کنید. backoff نمایی زمان انتظار را محدود می‌کند نه تعداد تلاش.',
+    },
+    {
+      qEn: 'RTL thumbnail shows garbled text?',
+      qFa: 'متن تامبنیل RTL درهم نمایش داده می‌شود؟',
+      aEn: 'Ensure arabic-reshaper and python-bidi are installed. Use a font in thumbnail-dependencies that covers the full Persian/Arabic Unicode range.',
+      aFa: 'اطمینان حاصل کنید arabic-reshaper و python-bidi نصب هستند. از فونتی در thumbnail-dependencies استفاده کنید که کل رنج یونیکد فارسی/عربی را پوشش دهد.',
+    },
+    {
+      qEn: 'Duplicate videos being published?',
+      qFa: 'ویدیوهای تکراری منتشر می‌شوند؟',
+      aEn: 'Both --run-once and the schedule thread may fire. Use one scheduler only: either the GUI schedule thread or main.py without --run-once, not both.',
+      aFa: 'هم --run-once و هم thread زمان‌بندی ممکن است فعال شوند. فقط از یک زمان‌بند استفاده کنید: یا GUI یا main.py بدون --run-once، نه هر دو.',
+    },
+    {
+      qEn: 'Can this project be open-sourced?',
+      qFa: 'آیا این پروژه می‌تواند متن‌باز شود؟',
+      aEn: 'No. Copyright Baltazar Team — MohammadTaha Hosseinzadeh as developer. All rights reserved. See LICENSE.',
+      aFa: 'خیر. حق نشر تیم بالتازار — محمدطاها حسین‌زاده به عنوان توسعه‌دهنده. تمامی حقوق محفوظ است. به LICENSE مراجعه کنید.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  // Override setLang to also handle FAQ bilingual
+  const origSetLang = setLang;
+  const _origSetLang = setLang;
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL
+  // ---------------------------------------------------------------
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>
