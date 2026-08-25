@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="meta.title">MohammadTaha HosseinZadeh - Portfolio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&family=Oi&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Poppins', 'sans-serif'],
+          display: ['Baloo 2', 'sans-serif'],
+          script: ['Caveat', 'cursive'],
+        },
+        colors: {
+          panel: '#141416',
+          field: '#18181a',
+          accent: '#10b981',
+        },
+        borderRadius: {
+          '3xl': '1.75rem',
+          '4xl': '2.25rem',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { font-family: 'Poppins', sans-serif; }
+  .font-script { font-family: 'Caveat', cursive; }
+  .font-display { font-family: 'Baloo 2', sans-serif; }
+
+  /* Reveal-on-scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.8s cubic-bezier(.22,.61,.36,1), transform 0.8s cubic-bezier(.22,.61,.36,1);
+  }
+  .reveal.in-view { opacity: 1; transform: translateY(0); }
+
+  /* Hero portrait tint to match the green-lit photography look */
+  .hero-photo { filter: saturate(1.15) contrast(1.05); mix-blend-mode: luminosity; }
+  .hero-photo-wrap { background: radial-gradient(120% 90% at 50% 15%, #34d399 0%, #059669 42%, #043a2c 78%, #0a0a0a 100%); }
+  .hero-photo-wrap-soft { background: radial-gradient(120% 90% at 50% 15%, #93fad4 0%, #a4ffe2be 75%, #1a1a1a 85%, #0a0a0a 100%); }
+
+  .glass-card {
+    background: rgba(20, 20, 22, 0.45);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .icon-btn { transition: transform .25s ease, background-color .25s ease, color .25s ease; }
+  .icon-btn:hover { transform: translateY(-3px); }
+
+  .card-img { transition: transform 0.6s cubic-bezier(.22,.61,.36,1); will-change: transform; }
+  .project-card:hover .card-img { transform: scale(1.06); }
+
+  .visit-link svg { transition: transform .25s ease; }
+  .visit-link:hover svg { transform: translate(2px,-2px); }
+
+  /* Scroll-linked spotlight on company names */
+  .exp-company {
+    color: #52525b;
+    transition: color 0.35s ease, transform 0.35s ease;
+    will-change: color, transform;
+  }
+  .exp-card { transition: transform 0.35s ease, background-color 0.35s ease; }
+  .exp-card:hover { transform: translateY(-4px); }
+
+  .contact-card { transition: background-color .3s ease, transform .3s ease, box-shadow .3s ease; }
+  .contact-card:hover { background-color: #1e1e21; box-shadow: 0 20px 40px -20px rgba(0,0,0,0.6); }
+  .social-btn { transition: transform .25s ease, filter .25s ease; }
+  .social-btn:hover { transform: translateY(-3px); filter: brightness(1.1); }
+  .copy-btn { transition: background-color .25s ease, border-color .25s ease, color .25s ease; }
+  .contact-glyph { will-change: transform; transition: transform .3s ease; }
+
+  /* Fixed nav pill */
+  .nav-link { transition: transform .25s ease, background-color .25s ease, color .25s ease; }
+  .nav-link:hover { transform: translateY(-3px); }
+  .nav-link.is-active { background-color: #10b981; color: #fff; }
+  .nav-link:not(.is-active) { color: #a3a3a3; }
+  .nav-link:not(.is-active):hover { background-color: rgba(255,255,255,0.05); color: #fff; }
+
+  ::selection { background: #10b981; color: white; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #000; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2c; border-radius: 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { transition: none; opacity: 1; transform: none; }
+    #hero-photo, .card-img, .exp-company, .contact-glyph { transition: none; }
+  }
+
+  /* ============= i18n / RTL / Persian typography ============= */
+  /* Body copy: El Messiri at a lighter weight for readable running text */
+  html[dir="rtl"] body { font-family: 'El Messiri', sans-serif; font-weight: 400; }
+  /* Section headings: same family, bolder weight for contrast against body copy */
+  html[dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  /* Name / signature display only — Oi has no Persian glyphs, so it gracefully
+     falls back to a bold El Messiri specifically for this decorative use */
+  html[dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  html[dir="rtl"] .leading-relaxed,
+  html[dir="rtl"] .leading-snug { line-height: 2; }
+  html[dir="rtl"] h1, html[dir="rtl"] h2, html[dir="rtl"] h3, html[dir="rtl"] h4 { letter-spacing: 0; }
+
+  /* Language toggle — single circular button showing the target language */
+  .lang-toggle-btn {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+  .lang-toggle-btn:active { transform: scale(0.92); }
+  /* Label is always Latin (EN/FA), so keep Poppins even in RTL/Persian mode */
+  html[dir="rtl"] .lang-toggle-btn { font-family: 'Poppins', sans-serif; }
+
+  /* Mirror fixed-position chrome for RTL */
+  @media (min-width: 1024px) {
+    html[dir="rtl"] nav[aria-label="Section navigation"] { left: 1.5rem; right: auto; }
+  }
+  html[dir="rtl"] #scroll-top { right: auto; left: 1rem; }
+  @media (min-width: 1024px) {
+    html[dir="rtl"] #scroll-top { left: 1.5rem; }
+  }
+  @media (min-width: 640px) {
+    html[dir="rtl"] #hero-quote-card { left: auto; right: 1.75rem; }
+  }
+  html[dir="rtl"] .sm\:text-left { text-align: right; }
+</style>
+</head>
+<body class="bg-black text-white antialiased min-h-screen">
+
+  <!-- ================= FIXED SITE NAV ================= -->
+  <nav aria-label="Section navigation"
+       class="fixed z-50 bottom-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-6 lg:top-1/2 lg:-translate-y-1/2 flex flex-row lg:flex-col items-center gap-3">
+    <div class="bg-panel rounded-full flex flex-row lg:flex-col items-center gap-3 sm:gap-4 py-3 px-4 lg:py-6 lg:px-3 shadow-2xl shadow-black/60">
+      <a href="#hero" data-target="hero" aria-label="Home" data-i18n-aria="nav.home"
+         class="nav-link is-active w-10 h-10 rounded-full flex items-center justify-center">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg>
+      </a>
+      <a href="#projects" data-target="projects" aria-label="Projects" data-i18n-aria="nav.projects"
+         class="nav-link w-10 h-10 rounded-full flex items-center justify-center">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+      </a>
+      <a href="#experience" data-target="experience" aria-label="Experience" data-i18n-aria="nav.experience"
+         class="nav-link w-10 h-10 rounded-full flex items-center justify-center">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      </a>
+      <a href="#contact" data-target="contact" aria-label="Contact" data-i18n-aria="nav.contact"
+         class="nav-link w-10 h-10 rounded-full flex items-center justify-center">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg>
+      </a>
+    </div>
+
+    <!-- Standalone language toggle: a single circle showing the language you'll switch TO -->
+    <button type="button" id="lang-toggle" aria-label="Switch to Persian"
+            class="lang-toggle-btn w-10 h-10 rounded-full bg-panel border border-white/10 shadow-2xl shadow-black/60 flex items-center justify-center text-neutral-300 hover:text-white hover:bg-accent hover:border-accent transition-colors duration-300">
+      <span id="lang-toggle-label">FA</span>
+    </button>
+  </nav>
+
+  <main class="max-w-[1500px] mx-auto px-4 py-8 sm:px-6 sm:py-10 lg:pl-10 lg:pr-28 lg:py-12">
+
+    <!-- ================= SECTION 1 — HERO ================= -->
+    <section id="hero" aria-label="Introduction" class="mb-20 sm:mb-28 lg:mb-32">
+      <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr_320px] gap-5">
+
+        <!-- Left sidebar -->
+        <aside class="flex flex-col gap-5 order-2 lg:order-1">
+
+          <!-- Profile mini card -->
+          <div class="reveal bg-panel rounded-3xl p-6">
+            <div class="flex items-center gap-2 mb-5">
+              <span class="w-3.5 h-3.5 rounded-full bg-accent shrink-0"></span>
+              <h1 class="font-script text-xl sm:text-2xl leading-tight tracking-wide" data-i18n="hero.name">MohammadTaha HosseinZadeh</h1>
+            </div>
+
+            <div class="hero-photo-wrap hero-photo-wrap-soft rounded-2xl overflow-hidden aspect-[4/3] mb-5">
+              <img src="assets/leftImg.png" alt="Portrait of MohammadTaha HosseinZadeh" class="hero-photo w-full h-full object-cover object-top">
+            </div>
+
+            <p class="text-sm text-neutral-400 leading-relaxed mb-6" data-i18n="hero.tagline">
+              Passionate about creating and designing systems with the best engaging engineering practices.
+            </p>
+
+            <button type="button" class="icon-btn w-full bg-white text-black font-semibold rounded-full py-3.5 text-sm hover:bg-neutral-200 active:scale-[0.98]" data-i18n="hero.downloadCv">
+              Download CV
+            </button>
+          </div>
+
+          <!-- Skills card -->
+          <div class="reveal bg-panel rounded-3xl p-6" style="transition-delay:80ms">
+            <h2 class="text-xl font-bold mb-5" data-i18n="hero.skillsTitle">Skills</h2>
+
+            <div class="grid grid-cols-7 gap-1 mb-5">
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1.5 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="Python" width="22" height="22" loading="lazy" class="w-[22px] h-[22px] object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Python</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://cdn.worldvectorlogo.com/logos/django.svg" alt="Django" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Django</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/flask/flask-original.svg" alt="Flask" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Flask</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original-wordmark.svg" alt="Docker" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Docker</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/nginx/nginx-original.svg" alt="Nginx" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Nginx</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original-wordmark.svg" alt="PostgreSQL" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">PostgreSQL</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original-wordmark.svg" alt="Redis" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Redis</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://www.vectorlogo.zone/logos/opencv/opencv-icon.svg" alt="OpenCV" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">OpenCV</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://www.vectorlogo.zone/logos/pytorch/pytorch-icon.svg" alt="PyTorch" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">PyTorch</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://www.vectorlogo.zone/logos/tensorflow/tensorflow-icon.svg" alt="TensorFlow" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">TensorFlow</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original-wordmark.svg" alt="React" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">React</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original-wordmark.svg" alt="HTML5" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">HTML5</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/css3/css3-original-wordmark.svg" alt="CSS3" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">CSS3</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/php/php-original.svg" alt="PHP" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">PHP</span>
+              </div>
+              <div class="icon-btn group flex flex-col items-center justify-center gap-1 bg-field rounded-lg p-1 border border-white/5 hover:border-emerald-500/60 hover:bg-black transition-colors">
+                <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" width="20" height="20" loading="lazy" class="w-5 h-5 object-contain">
+                <span class="text-[6.5px] text-neutral-400 group-hover:text-emerald-400 text-center leading-tight">Git</span>
+              </div>
+            </div>
+
+          </div>
+        </aside>
+
+        <!-- Hero photo -->
+        <div class="reveal order-1 lg:order-2 relative rounded-3xl overflow-hidden hero-photo-wrap min-h-[420px] sm:min-h-[560px] lg:min-h-0" style="transition-delay:40ms">
+          <img id="hero-photo" src="assets/heroimg.png" alt="MohammadTaha HosseinZadeh portrait" class="hero-photo absolute inset-0 w-full h-full object-cover object-top will-change-transform">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10"></div>
+
+          <div id="hero-quote-card" class="glass-card absolute left-5 right-5 bottom-5 sm:left-7 sm:right-auto sm:bottom-7 rounded-3xl p-6 sm:p-7 sm:max-w-[460px]">
+            <p class="font-script text-4xl sm:text-5xl leading-[0.95] text-white mb-5" data-i18n-html="hero.nameLines">MohammadTaha<br>HosseinZadeh</p>
+            <div class="flex gap-3">
+              <a href="#projects" class="icon-btn px-6 py-3 rounded-full bg-accent text-white text-sm font-semibold hover:bg-emerald-600 active:scale-95" data-i18n="hero.ctaProjects">Projects</a>
+              <a href="#experience" class="icon-btn px-6 py-3 rounded-full bg-black text-white text-sm font-semibold hover:bg-neutral-800 active:scale-95" data-i18n="hero.ctaAbout">About Me</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right sidebar -->
+        <aside class="flex flex-col gap-5 order-3 lg:h-full">
+          <div class="reveal bg-panel rounded-3xl p-6 lg:flex-1 lg:flex lg:flex-col" style="transition-delay:120ms">
+            <p class="text-medium leading-snug mb-4" data-i18n-html="sidebar.introLine">
+              MohammadTaha HosseinZadeh — <span class="font-bold">Full-Stack Engineer (Python &amp; AI Focus)</span>
+            </p>
+            <p class="text-sm text-neutral-200 leading-relaxed mb-6" data-i18n="sidebar.description">
+              Full-Stack Engineer with strong core expertise in Python backend development, LLM integration, and PHP/WordPress architecture. Versatile across the entire tech stack, capable of building robust APIs, deploying AI-driven solutions, and crafting smooth user-facing frontend interfaces.
+            </p>
+
+            <div class="flex items-center gap-3 mb-6">
+              <a href="https://www.linkedin.com/in/mohammadtaha-hosseinzadehjami/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" class="icon-btn w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:bg-neutral-200">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M4.98 3.5A2.5 2.5 0 1 1 5 8.5a2.5 2.5 0 0 1-.02-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.05c.53-.95 1.83-1.95 3.77-1.95 4.03 0 4.78 2.5 4.78 5.75V21h-4v-5.9c0-1.4-.03-3.2-2-3.2-2 0-2.3 1.5-2.3 3.1V21h-4V9Z"/></svg>
+              </a>
+              <a href="https://github.com/mohammadtaha-jami/" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="icon-btn w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:bg-neutral-200">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+              </a>
+              <a href="https://t.me/mohammadtaha_jami" target="_blank" rel="noopener noreferrer" aria-label="Telegram" class="icon-btn w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:bg-neutral-200">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M21.9 4.2c.3-1.2-.9-2.1-1.9-1.6L2.4 10.1c-1.3.5-1.3 2.4.1 2.8l4.4 1.3 1.7 5.4c.2.7 1.1.9 1.6.4l2.6-2.5 4.7 3.6c.9.7 2.2.2 2.4-.9L21.9 4.2Zm-4.2 3.1-8.3 7.4-.3 3-1.4-4.5 8.9-6.6c.4-.3.8.2.4.5l-7.5 6.9 7.9-6c.3-.2.6.1.3.3Z"/></svg>
+              </a>
+            </div>
+
+            <div class="hero-photo-wrap rounded-2xl overflow-hidden aspect-[4/3] mb-5">
+              <img src="assets/rightImg.png" alt="MohammadTaha HosseinZadeh at desk" class="hero-photo w-full h-full object-cover object-top">
+            </div>
+
+            <p class="text-sm text-neutral-300 leading-relaxed mb-6" data-i18n="sidebar.contactLine">
+              massage me on social networks or send me an email.
+            </p>
+
+            <a href="#contact" class="icon-btn block text-center w-full bg-accent text-white font-semibold rounded-full py-3.5 text-sm hover:bg-emerald-600 active:scale-[0.98]" data-i18n="sidebar.contactBtn">
+              Contact Me
+            </a>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ================= SECTION 2 — PROJECTS ================= -->
+    <section id="projects" aria-labelledby="projects-heading" class="mb-20 sm:mb-28 lg:mb-32">
+      <h2 id="projects-heading"
+          class="reveal font-display font-extrabold uppercase text-3xl sm:text-4xl text-center tracking-wide mb-10 sm:mb-14" data-i18n="projects.heading">
+        Recent Projects
+      </h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+        <!-- Project Card #1 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:0ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/YoutubeManagerEN.png" data-i18n-img="assets/YoutubeManagerFA.png"
+                 alt="Preview screen related to the Python Automation & Computer Vision Engineer project (1)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title1">Automated Multi-Channel YouTube Video Production &amp; Publishing Desktop System</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc1">
+            Developed an end-to-end desktop automation system for YouTube content creation and publishing, integrating LLM script generation, TTS audio, automated image/video editing, and scheduled uploads via YouTube Data API.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="OpenCV" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/opencv/opencv-icon.svg" alt="OpenCV" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #2 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:60ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/CrmEN.png" data-i18n-img="assets/CrmFA.png"
+                 alt="Preview screen related to the Role-Based Sales Pipeline & CRM Web Application (Baltazar Flow) project (2)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <a href="https://github.com/mohammadtaha-jami/CRM-Baltazar" target="_blank" rel="noopener noreferrer"
+                 aria-label="View Python Automation & Computer Vision Engineer repository on GitHub"
+                 class="peer/gh group/gh absolute top-2.5 right-2.5 z-20 flex flex-row-reverse items-center h-8 max-w-[32px] hover:max-w-[76%] focus-visible:max-w-[76%] rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-lg shadow-black/40 overflow-hidden transition-[max-width] duration-300 ease-out">
+                <span class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+                </span>
+                <span class="pl-1 pr-3 text-[10.5px] font-medium text-neutral-200 whitespace-nowrap opacity-0 group-hover/gh:opacity-100 group-focus-visible/gh:opacity-100 transition-opacity duration-200 delay-150" data-i18n="projects.viewRepo">
+                  View Repository
+                </span>
+              </a>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title2">Role-Based Sales Pipeline &amp; CRM Web Application (Baltazar Flow)</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc2">
+            Developed "Baltazar Flow", a Flask-based CRM and sales pipeline web application for managing sequential lead progression; featured role-based access control and customized dashboards to track team performance.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Flask" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/flask/flask-original.svg" alt="Flask" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="HTML" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" alt="HTML" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="CSS" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/css3/css3-original.svg" alt="CSS" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #3 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:120ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/TeamManagementEN.png" data-i18n-img="assets/TeamManagementFA.png"
+                 alt="Preview screen related to the Centralized Team Task & Project Management Web Application project (3)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <a href="https://github.com/mohammadtaha-jami/Team-mangment-app" target="_blank" rel="noopener noreferrer"
+                 aria-label="View Python Automation & Computer Vision Engineer repository on GitHub"
+                 class="peer/gh group/gh absolute top-2.5 right-2.5 z-20 flex flex-row-reverse items-center h-8 max-w-[32px] hover:max-w-[76%] focus-visible:max-w-[76%] rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-lg shadow-black/40 overflow-hidden transition-[max-width] duration-300 ease-out">
+                <span class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+                </span>
+                <span class="pl-1 pr-3 text-[10.5px] font-medium text-neutral-200 whitespace-nowrap opacity-0 group-hover/gh:opacity-100 group-focus-visible/gh:opacity-100 transition-opacity duration-200 delay-150" data-i18n="projects.viewRepo">
+                  View Repository
+                </span>
+              </a>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-emerald-500/15 border-emerald-400/30 text-emerald-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2.1"/></svg><span data-i18n="projects.openSource">Open Source</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title3">Centralized Team Task &amp; Project Management Web Application</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc3">
+            Developed a full-stack team management web application using Django and React to organize projects and tasks, enabling role-based access control, progress tracking, and streamlined team collaboration.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Django" class="w-6 h-6 rounded-full bg-[#092E20] flex items-center justify-center">
+              <img src="https://cdn.worldvectorlogo.com/logos/django.svg" alt="Django" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="React" class="w-6 h-6 rounded-full bg-[#20232a] flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg" alt="React" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #4 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:180ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/TeamProjectManagementEN.png" data-i18n-img="assets/TeamProjectManagementFA.png"
+                 alt="Preview screen related to the Service Management & Multi-Format Invoice Generation System project (4)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <a href="https://github.com/mohammadtaha-jami/TeamProjectsManagement" target="_blank" rel="noopener noreferrer"
+                 aria-label="View Python Automation & Computer Vision Engineer repository on GitHub"
+                 class="peer/gh group/gh absolute top-2.5 right-2.5 z-20 flex flex-row-reverse items-center h-8 max-w-[32px] hover:max-w-[76%] focus-visible:max-w-[76%] rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-lg shadow-black/40 overflow-hidden transition-[max-width] duration-300 ease-out">
+                <span class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+                </span>
+                <span class="pl-1 pr-3 text-[10.5px] font-medium text-neutral-200 whitespace-nowrap opacity-0 group-hover/gh:opacity-100 group-focus-visible/gh:opacity-100 transition-opacity duration-200 delay-150" data-i18n="projects.viewRepo">
+                  View Repository
+                </span>
+              </a>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title4">Service Management &amp; Multi-Format Invoice Generation System</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc4">
+            Built a Flask-based web application with a Tailwind CSS UI to manage service catalogs, clients, and custom orders, featuring automated generation of four distinct PDF invoice types with native RTL and Persian language support.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Flask" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/flask/flask-original.svg" alt="Flask" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="HTML" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" alt="HTML" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="CSS" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/css3/css3-original.svg" alt="CSS" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #5 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:240ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/RagBotEN.png" data-i18n-img="assets/RagBotFA.png"
+                 alt="Preview screen related to the Intent-Aware RAG Chatbot System (Branding Bot) project (5)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <a href="https://github.com/mohammadtaha-jami/BrandingAgent" target="_blank" rel="noopener noreferrer"
+                 aria-label="View Python Automation & Computer Vision Engineer repository on GitHub"
+                 class="peer/gh group/gh absolute top-2.5 right-2.5 z-20 flex flex-row-reverse items-center h-8 max-w-[32px] hover:max-w-[76%] focus-visible:max-w-[76%] rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-lg shadow-black/40 overflow-hidden transition-[max-width] duration-300 ease-out">
+                <span class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+                </span>
+                <span class="pl-1 pr-3 text-[10.5px] font-medium text-neutral-200 whitespace-nowrap opacity-0 group-hover/gh:opacity-100 group-focus-visible/gh:opacity-100 transition-opacity duration-200 delay-150" data-i18n="projects.viewRepo">
+                  View Repository
+                </span>
+              </a>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title5">Intent-Aware RAG Chatbot System (Branding Bot)</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc5">
+            Built a session-isolated RAG chatbot powered by FastAPI and local Ollama models, featuring an LLM intent router to optimize vector search by selectively retrieving knowledge from ingested PDF/text documents.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="HTML" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" alt="HTML" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #6 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:300ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/selfbotEN.png" data-i18n-img="assets/selfbotFA.png"
+                 alt="Preview screen related to the Event-Driven Telegram Lead Intelligence & Opportunity Detection System project (6)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <a href="https://github.com/mohammadtaha-jami/self-bot" target="_blank" rel="noopener noreferrer"
+                 aria-label="View Python Automation & Computer Vision Engineer repository on GitHub"
+                 class="peer/gh group/gh absolute top-2.5 right-2.5 z-20 flex flex-row-reverse items-center h-8 max-w-[32px] hover:max-w-[76%] focus-visible:max-w-[76%] rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-lg shadow-black/40 overflow-hidden transition-[max-width] duration-300 ease-out">
+                <span class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+                </span>
+                <span class="pl-1 pr-3 text-[10.5px] font-medium text-neutral-200 whitespace-nowrap opacity-0 group-hover/gh:opacity-100 group-focus-visible/gh:opacity-100 transition-opacity duration-200 delay-150" data-i18n="projects.viewRepo">
+                  View Repository
+                </span>
+              </a>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title6">Event-Driven Telegram Lead Intelligence &amp; Opportunity Detection System</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc6">
+            Engineerd an automated Telegram listening and lead-scoring platform using Telethon, Celery, and Redis to process real-time group conversations, score buying intent, and deliver actionable sales leads via a FastAPI microservice.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Docker" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg" alt="Docker" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="PostgreSQL" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Redis" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original.svg" alt="Redis" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #7 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:360ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/E-commenrceBotEN.png" data-i18n-img="assets/E-commenrceBotFA.png"
+                 alt="Preview screen related to the Telegram E-Commerce Bot with Real-Time WooCommerce Catalog Synchronization project (7)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title7">Telegram E-Commerce Bot with Real-Time WooCommerce Catalog Synchronization</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc7">
+            Developed an async Telegram storefront bot integrated with a Flask admin panel to continuously sync WooCommerce categories and products into a local SQLite database, providing users with dynamic inline navigation.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Flask" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/flask/flask-original.svg" alt="Flask" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="HTML" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" alt="HTML" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #8 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:420ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/BizlandingpageEN.png" data-i18n-img="assets/BizlandingpageFA.png"
+                 alt="Preview screen related to the Custom WordPress Plugin for Business Directory & Micro-Landing Page Subscriptions project (8)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title8">Custom WordPress Plugin for Business Directory & Micro-Landing Page Subscriptions</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc8">
+            Engineerd a full-featured PHP plugin for WordPress to convert sites into business directories with tier-based subscriptions, ZarinPal payment gateway, role-based dashboards, and custom Elementor widgets.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="PHP — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#777BB3] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/php/php-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">PHP</span>
+            </span>
+            <span title="HTML" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" alt="HTML" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="CSS" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/css3/css3-original.svg" alt="CSS" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+        <!-- Project Card #9 — demo content from the supplied example; swap image/title/desc/skills/license/link per real project -->
+        <article class="project-card reveal group/card relative bg-panel rounded-2xl p-4 flex flex-col border border-white/[0.06] hover:-translate-y-1.5 hover:border-emerald-500/25 hover:shadow-xl hover:shadow-black/40 transition-all duration-300" style="transition-delay:480ms">
+          <div class="relative rounded-xl overflow-hidden aspect-[4/3] mb-4">
+            <img src="assets/ViewEN.png" data-i18n-img="assets/ViewFA.png"
+                 alt="Preview screen related to the Automated Video Playback Automation & Performance Testing Desktop Suite project (9)"
+                 class="card-img w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/55 via-black/0 to-black/50 pointer-events-none"></div>
+            <span class="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide backdrop-blur-md border shadow-sm shadow-black/30 transition-all duration-300 ease-out peer-hover/gh:opacity-0 peer-hover/gh:-translate-x-2 peer-hover/gh:scale-90 peer-focus-visible/gh:opacity-0 peer-focus-visible/gh:-translate-x-2 peer-focus-visible/gh:scale-90 bg-amber-500/15 border-amber-400/30 text-amber-300"><svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="projects.licensed">Licensed</span></span>
+          </div>
+
+          <h3 class="text-[15px] sm:text-base font-bold leading-snug mb-1.5" data-i18n="projects.title9">Automated Video Playback Automation &amp; Performance Testing Desktop Suite</h3>
+          <p class="text-[12.5px] text-neutral-400 leading-relaxed mb-4 line-clamp-3" data-i18n="projects.desc9">
+            Built a CustomTkinter desktop application utilizing Playwright to drive parallel Chromium workers for video playback testing, featuring session state persistence, proxy validation, and structured JSON reporting.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-black/50 rounded-2xl px-2.5 py-2 mb-5 w-fit max-w-full">
+            <span title="Python — primary language" class="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full pl-1 pr-2.5 py-1">
+              <span class="w-5 h-5 rounded-full bg-[#1e2b3c] flex items-center justify-center overflow-hidden">
+                <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="" class="w-3.5 h-3.5 object-contain">
+              </span>
+              <span class="text-[10.5px] font-semibold text-emerald-300 tracking-wide">Python</span>
+            </span>
+            <span title="Git" class="w-6 h-6 rounded-full bg-[#1e1e20] flex items-center justify-center">
+              <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="Git" class="w-3.5 h-3.5 object-contain">
+            </span>
+            <span title="HTML" class="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+              <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/html5/html5-original.svg" alt="HTML" class="w-3.5 h-3.5 object-contain">
+            </span>
+          </div>
+
+          <a href="https://github.com/mohammadtaha-jami/AGI_Project" target="_blank" rel="noopener noreferrer" class="visit-link mt-auto inline-flex items-center gap-2 text-xs font-medium text-neutral-200 hover:text-emerald-400 w-fit">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+            <span data-i18n="projects.viewGithub">View Details</span>
+          </a>
+        </article>
+
+      
+      </div>
+    </section>
+
+    <!-- ================= SECTION 3 — EXPERIENCE & ABOUT ME ================= -->
+    <section id="experience" aria-labelledby="experience-heading" class="mb-20 sm:mb-28 lg:mb-32">
+      <h2 id="experience-heading"
+          class="reveal font-display font-extrabold uppercase text-3xl sm:text-4xl text-center tracking-wide mb-14 sm:mb-20" data-i18n="experience.heading">
+        Experience and About Me
+      </h2>
+
+      <div class="flex flex-col gap-16 sm:gap-20">
+
+        <div class="grid grid-cols-1 md:grid-cols-[minmax(160px,280px)_1fr] gap-6 md:gap-10 items-start">
+          <h3 class="exp-company font-display font-bold text-4xl sm:text-5xl" data-i18n-html="hero.nameLines">MohammadTaha<br>Hosseinzadeh</h3>
+          <article class="exp-card reveal bg-panel rounded-3xl p-6 sm:p-7 max-w-3xl w-full">
+            <h4 class="text-lg sm:text-xl font-bold mb-4 text-emerald-400" data-i18n="experience.role1">Python Developer &amp; AI Specialist</h4>
+            <p class="text-sm text-neutral-400 leading-relaxed mb-4" data-i18n="experience.bio1">
+              With over 3 years of experience in software engineering, my primary focus lies in Python, AI solution deployment, and automation architecture. Throughout my career, I have designed and delivered scalable backend systems and web solutions from conception to deployment. Beyond the Python ecosystem, I possess strong expertise in core web architectures, database management, and custom PHP plugin development.
+            </p>
+            <p class="text-sm text-neutral-400 leading-relaxed mb-4" data-i18n="experience.bio2">
+              Alongside standard engineering practices, I have proven experience building and launching projects using the Vibe Coding methodology and AI-assisted tools. This allows me to significantly accelerate development velocity and convert complex business logic into clean, production-ready code.
+            </p>
+            <p class="text-sm text-neutral-400 leading-relaxed" data-i18n="experience.bio3">
+              Driven by a research-oriented mindset and strong problem-solving skills, I am committed to modern software standards. My fast learning capability enables me to quickly adapt to emerging technologies and execute optimal engineering solutions.
+            </p>
+          </article>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-[minmax(160px,280px)_1fr] gap-6 md:gap-10 items-center">
+          <h3 class="exp-company font-display font-bold text-4xl sm:text-5xl" data-i18n-html="experience.company2NameLines">Team<br>Baltazar</h3>
+          <article class="exp-card reveal bg-panel rounded-3xl p-6 sm:p-7 max-w-xl w-full" style="transition-delay:80ms">
+            <h4 class="text-lg sm:text-xl font-bold mb-1.5" data-i18n="experience.role2">Full-Stack Developer</h4>
+            <p class="text-sm text-neutral-400 mb-4" dir="ltr">1403 - 1405</p>
+            <p class="text-sm text-neutral-400 leading-relaxed" data-i18n="experience.desc2">
+              Leveraged 2 years of experience at Balthazar to build, implement, and deploy diverse projects in a fast-paced startup environment, delivering high-impact results through effective cross-functional collaboration.
+            </p>
+          </article>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= SECTION 4 — CONTACT ================= -->
+    <section id="contact" aria-labelledby="contact-heading">
+      <h2 id="contact-heading"
+          class="reveal font-display font-extrabold uppercase text-3xl sm:text-4xl text-center tracking-wide mb-10 sm:mb-12" data-i18n="contact.heading">
+        Contact Me
+      </h2>
+
+      <div class="max-w-[645px] mx-auto flex flex-col gap-5">
+
+        <article class="contact-card reveal bg-field rounded-3xl p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center gap-5" style="transition-delay:0ms">
+          <div class="contact-glyph w-16 h-16 rounded-2xl bg-[#229ED9] flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" class="w-8 h-8" fill="white"><path d="M21.9 4.2c.3-1.2-.9-2.1-1.9-1.6L2.4 10.1c-1.3.5-1.3 2.4.1 2.8l4.4 1.3 1.7 5.4c.2.7 1.1.9 1.6.4l2.6-2.5 4.7 3.6c.9.7 2.2.2 2.4-.9L21.9 4.2Zm-4.2 3.1-8.3 7.4-.3 3-1.4-4.5 8.9-6.6c.4-.3.8.2.4.5l-7.5 6.9 7.9-6c.3-.2.6.1.3.3Z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs uppercase tracking-wider text-neutral-500 mb-1" data-i18n="contact.telegramLabel">Telegram</p>
+            <p id="telegram-handle" dir="ltr" class="text-lg font-semibold text-white truncate">@mohammadtaha_jami</p>
+            <p class="text-sm text-neutral-500 mt-0.5" data-i18n="contact.telegramDesc">Chat with me directly, fastest way to reach me.</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <a href="https://t.me/mohammadtaha_jami" target="_blank" rel="noopener noreferrer"
+               class="icon-btn bg-accent hover:bg-emerald-600 text-white text-sm font-semibold rounded-full px-5 py-2.5 whitespace-nowrap" data-i18n="contact.openTelegram">
+              Open Telegram
+            </a>
+            <button type="button" data-copy="@mohammadtaha_jami" data-copy-target="copy-telegram-label"
+                    class="copy-btn bg-black border border-white/10 hover:bg-neutral-800 text-white text-sm font-semibold rounded-full px-5 py-2.5 whitespace-nowrap">
+              <span id="copy-telegram-label" data-i18n="contact.copyId">Copy ID</span>
+            </button>
+          </div>
+        </article>
+
+        <article class="contact-card reveal bg-field rounded-3xl p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center gap-5" style="transition-delay:100ms">
+          <div class="contact-glyph w-16 h-16 rounded-2xl bg-accent flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" class="w-8 h-8" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+              <path d="m4 6.5 8 6.5 8-6.5"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs uppercase tracking-wider text-neutral-500 mb-1" data-i18n="contact.emailLabel">Email</p>
+            <p id="email-address" dir="ltr" class="text-lg font-semibold text-white truncate">taha.jami.0087@gmail.com</p>
+            <p class="text-sm text-neutral-500 mt-0.5" data-i18n="contact.emailDesc">Prefer email? Drop me a line anytime.</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <a href="mailto:taha.jami.0087@gmail.com"
+               class="icon-btn bg-accent hover:bg-emerald-600 text-white text-sm font-semibold rounded-full px-5 py-2.5 whitespace-nowrap" data-i18n="contact.sendEmail">
+              Send Email
+            </a>
+            <button type="button" data-copy="taha.jami.0087@gmail.com" data-copy-target="copy-email-label"
+                    class="copy-btn bg-black border border-white/10 hover:bg-neutral-800 text-white text-sm font-semibold rounded-full px-5 py-2.5 whitespace-nowrap">
+              <span id="copy-email-label" data-i18n="contact.copyEmail">Copy Email</span>
+            </button>
+          </div>
+        </article>
+
+        <article class="contact-card reveal bg-field rounded-3xl p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center gap-5" style="transition-delay:200ms">
+          <div class="contact-glyph w-16 h-16 rounded-2xl bg-accent flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" class="w-8 h-8" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.99.36 1.96.7 2.89a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.19-1.27a2 2 0 0 1 2.11-.45c.93.34 1.9.57 2.89.7A2 2 0 0 1 22 16.92Z"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs uppercase tracking-wider text-neutral-500 mb-1" data-i18n="contact.phoneLabel">Phone</p>
+            <p id="phone-number" dir="ltr" class="text-lg font-semibold text-white truncate">+98 933 573 9382</p>
+            <p class="text-sm text-neutral-500 mt-0.5" data-i18n="contact.phoneDesc">Reach out for a quick call, wherever you are.</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <a href="tel:+989335739382"
+               class="icon-btn bg-accent hover:bg-emerald-600 text-white text-sm font-semibold rounded-full px-5 py-2.5 whitespace-nowrap" data-i18n="contact.callNow">
+              Call Now
+            </a>
+            <button type="button" data-copy="+989335739382" data-copy-target="copy-phone-label"
+                    class="copy-btn bg-black border border-white/10 hover:bg-neutral-800 text-white text-sm font-semibold rounded-full px-5 py-2.5 whitespace-nowrap">
+              <span id="copy-phone-label" data-i18n="contact.copyNumber">Copy Number</span>
+            </button>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="reveal mt-16 sm:mt-24 border-t border-white/10 pt-8 pb-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div class="flex flex-col sm:flex-row items-center gap-6 sm:gap-10 text-center sm:text-left">
+          <span class="font-script text-2xl sm:text-3xl leading-tight" data-i18n="hero.name">MohammadTaha HosseinZadeh</span>
+          <nav aria-label="Footer">
+            <ul class="flex items-center gap-6 text-sm text-neutral-300">
+              <li><a href="#hero" class="hover:text-white transition-colors" data-i18n="nav.home">Home</a></li>
+              <li><a href="#projects" class="hover:text-white transition-colors" data-i18n="nav.projects">Projects</a></li>
+              <li><a href="#experience" class="hover:text-white transition-colors" data-i18n="hero.ctaAbout">About Me</a></li>
+            </ul>
+          </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <a href="https://t.me/mohammadtaha_jami" target="_blank" rel="noopener noreferrer" aria-label="Telegram" class="social-btn w-9 h-9 rounded-full bg-accent flex items-center justify-center">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M21.9 4.2c.3-1.2-.9-2.1-1.9-1.6L2.4 10.1c-1.3.5-1.3 2.4.1 2.8l4.4 1.3 1.7 5.4c.2.7 1.1.9 1.6.4l2.6-2.5 4.7 3.6c.9.7 2.2.2 2.4-.9L21.9 4.2Zm-4.2 3.1-8.3 7.4-.3 3-1.4-4.5 8.9-6.6c.4-.3.8.2.4.5l-7.5 6.9 7.9-6c.3-.2.6.1.3.3Z"/></svg>
+          </a>
+          <a href="https://www.linkedin.com/in/mohammadtaha-hosseinzadehjami/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" class="social-btn w-9 h-9 rounded-full bg-accent flex items-center justify-center">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M4.98 3.5A2.5 2.5 0 1 1 5 8.5a2.5 2.5 0 0 1-.02-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.05c.53-.95 1.83-1.95 3.77-1.95 4.03 0 4.78 2.5 4.78 5.75V21h-4v-5.9c0-1.4-.03-3.2-2-3.2-2 0-2.3 1.5-2.3 3.1V21h-4V9Z"/></svg>
+          </a>
+          <a href="https://github.com/mohammadtaha-jami/" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="social-btn w-9 h-9 rounded-full bg-accent flex items-center justify-center">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="white"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.15c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.42.36.78 1.07.78 2.16v3.2c0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <p class="text-center text-xs text-neutral-500 mt-8" data-i18n="footer.copyright">© All Rights Reserved By MohammadTaha HosseinZadeh</p>
+    </footer>
+
+  </main>
+
+  <!-- Scroll to top -->
+  <button id="scroll-top" type="button" aria-label="Scroll to top"
+          class="fixed z-40 bottom-24 right-4 lg:bottom-6 lg:right-6 w-10 h-10 rounded-xl bg-neutral-800/90 hover:bg-neutral-700 text-white flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 shadow-lg">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+  </button>
+
+  <script>
+    // ---- i18n: translations (EN / FA) ----
+    const I18N = {
+      en: {
+        'meta.title': 'MohammadTaha HosseinZadeh - Portfolio',
+        'nav.home': 'Home',
+        'nav.projects': 'Projects',
+        'nav.experience': 'Experience',
+        'nav.contact': 'Contact',
+        'hero.name': 'MohammadTaha HosseinZadeh',
+        'hero.nameLines': 'MohammadTaha<br>HosseinZadeh',
+        'hero.tagline': 'Passionate about creating and designing websites with the best engaging interfaces.',
+        'hero.downloadCv': 'Download CV',
+        'hero.skillsTitle': 'Skills',
+        'hero.ctaProjects': 'Projects',
+        'hero.ctaAbout': 'About Me',
+        'sidebar.introLine': 'MohammadTaha HosseinZadeh — <span class="font-bold">Full-Stack Engineer (Python &amp; AI Focus)</span>',
+        'sidebar.description': 'Full-Stack Engineer with strong core expertise in Python backend development, LLM integration, and PHP/WordPress architecture. Versatile across the entire tech stack, capable of building robust APIs, deploying AI-driven solutions, and crafting smooth user-facing frontend interfaces.',
+        'sidebar.contactLine': 'Message me on social networks or send me an email.',
+        'sidebar.contactBtn': 'Contact Me',
+        'projects.heading': 'Recent Projects',
+        'projects.title1': 'Automated Multi-Channel YouTube Video Production & Publishing Desktop System',
+        'projects.desc1': 'Developed an end-to-end desktop automation system for YouTube content creation and publishing, integrating LLM script generation, TTS audio, automated image/video editing, and scheduled uploads via YouTube Data API.',
+        'projects.title2': 'Role-Based Sales Pipeline & CRM Web Application (Baltazar Flow)',
+        'projects.desc2': 'Developed "Baltazar Flow", a Flask-based CRM and sales pipeline web application for managing sequential lead progression; featured role-based access control and customized dashboards to track team performance.',
+        'projects.title3': 'Centralized Team Task & Project Management Web Application',
+        'projects.desc3': 'Developed a full-stack team management web application using Django and React to organize projects and tasks, enabling role-based access control, progress tracking, and streamlined team collaboration.',
+        'projects.title4': 'Service Management & Multi-Format Invoice Generation System',
+        'projects.desc4': 'Built a Flask-based web application with a Tailwind CSS UI to manage service catalogs, clients, and custom orders, featuring automated generation of four distinct PDF invoice types with native RTL and Persian language support.',
+        'projects.title5': 'Intent-Aware RAG Chatbot System (Branding Bot)',
+        'projects.desc5': 'Built a session-isolated RAG chatbot powered by FastAPI and local Ollama models, featuring an LLM intent router to optimize vector search by selectively retrieving knowledge from ingested PDF/text documents.',
+        'projects.title6': 'Event-Driven Telegram Lead Intelligence & Opportunity Detection System',
+        'projects.desc6': 'Engineerd an automated Telegram listening and lead-scoring platform using Telethon, Celery, and Redis to process real-time group conversations, score buying intent, and deliver actionable sales leads via a FastAPI microservice.',
+        'projects.title7': 'Telegram E-Commerce Bot with Real-Time WooCommerce Catalog Synchronization',
+        'projects.desc7': 'Developed an async Telegram storefront bot integrated with a Flask admin panel to continuously sync WooCommerce categories and products into a local SQLite database, providing users with dynamic inline navigation.',
+        'projects.title8': 'Custom WordPress Plugin for Business Directory & Micro-Landing Page Subscriptions',
+        'projects.desc8': 'Engineered a full-featured PHP plugin for WordPress to convert sites into business directories with tier-based subscriptions, ZarinPal payment gateway, role-based dashboards, and custom Elementor widgets.',
+        'projects.title9': 'Automated Video Playback Automation & Performance Testing Desktop Suite',
+        'projects.desc9': 'Built a CustomTkinter desktop application utilizing Playwright to drive parallel Chromium workers for video playback testing, featuring session state persistence, proxy validation, and structured JSON reporting.',
+        'projects.title': 'Python Automation & Computer Vision Engineer',
+        'projects.desc': 'Developed an end-to-end desktop automation system for YouTube content creation and publishing, integrating LLM script generation, TTS audio, automated image/video editing, and scheduled uploads via YouTube Data API.',
+        'projects.viewRepo': 'View Repository',
+        'projects.openSource': 'Open Source',
+        'projects.licensed': 'Licensed',
+        'projects.viewGithub': 'View Details',
+        'experience.heading': 'Experience and About Me',
+        'experience.role1': 'Python Developer & AI Specialist',
+        'experience.bio1': 'With over 3 years of experience in software engineering, my primary focus lies in Python, AI solution deployment, and automation architecture. Throughout my career, I have designed and delivered scalable backend systems and web solutions from conception to deployment. Beyond the Python ecosystem, I possess strong expertise in core web architectures, database management, and custom PHP plugin development.',
+        'experience.bio2': 'Alongside standard engineering practices, I have proven experience building and launching projects using the Vibe Coding methodology and AI-assisted tools. This allows me to significantly accelerate development velocity and convert complex business logic into clean, production-ready code.',
+        'experience.bio3': 'Driven by a research-oriented mindset and strong problem-solving skills, I am committed to modern software standards. My fast learning capability enables me to quickly adapt to emerging technologies and execute optimal engineering solutions.',
+        'experience.company2NameLines': 'Team<br>Baltazar',
+        'experience.role2': 'Full-Stack Developer',
+        'experience.desc2': 'Leveraged 2 years of experience at Balthazar to build, implement, and deploy diverse projects in a fast-paced startup environment, delivering high-impact results through effective cross-functional collaboration.',
+        'contact.heading': 'Contact Me',
+        'contact.telegramLabel': 'Telegram',
+        'contact.telegramDesc': 'Chat with me directly, fastest way to reach me.',
+        'contact.openTelegram': 'Open Telegram',
+        'contact.copyId': 'Copy ID',
+        'contact.emailLabel': 'Email',
+        'contact.emailDesc': 'Prefer email? Drop me a line anytime.',
+        'contact.sendEmail': 'Send Email',
+        'contact.copyEmail': 'Copy Email',
+        'contact.phoneLabel': 'Phone',
+        'contact.phoneDesc': 'Reach out for a quick call, wherever you are.',
+        'contact.callNow': 'Call Now',
+        'contact.copyNumber': 'Copy Number',
+        'footer.copyright': '© All Rights Reserved By MohammadTaha HosseinZadeh',
+        'copied': 'Copied!',
+        'copyFailed': 'Copy failed',
+      },
+      fa: {
+        'meta.title': 'محمد طاها حسین‌زاده - نمونه‌کار',
+        'nav.home': 'خانه',
+        'nav.projects': 'پروژه‌ها',
+        'nav.experience': 'سوابق',
+        'nav.contact': 'تماس',
+        'hero.name': 'محمد طاها حسین‌زاده',
+        'hero.nameLines': 'محمد طاها<br>حسین‌زاده',
+        'hero.tagline': 'علاقه‌مند به ساخت و طراحی سامانه‌هایی با هوشمند بهترین پیاده‌سازی های مهندسی.',
+        'hero.downloadCv': 'دانلود رزومه',
+        'hero.skillsTitle': 'مهارت‌ها',
+        'hero.ctaProjects': 'پروژه‌ها',
+        'hero.ctaAbout': 'درباره من',
+        'sidebar.introLine': 'محمد طاها حسین‌زاده — <span class="font-bold">مهندس فول‌استک (با تمرکز بر پایتون و هوش مصنوعی)</span>',
+        'sidebar.description': 'مهندس فول‌استک با تخصص اصلی در توسعه بک‌اند با پایتون، یکپارچه‌سازی مدل‌های زبانی بزرگ و معماری PHP/وردپرس. مسلط بر کل پشته فناوری، قادر به ساخت APIهای مطمئن، استقرار راهکارهای مبتنی بر هوش مصنوعی و طراحی رابط‌های کاربری روان.',
+        'sidebar.contactLine': 'از طریق شبکه‌های اجتماعی پیام بدهید یا برایم ایمیل بفرستید.',
+        'sidebar.contactBtn': 'تماس با من',
+        'projects.heading': 'پروژه‌های اخیر',
+        'projects.title1': 'سامانه دسکتاپ اتوماسیون هوشمند تولید و انتشار محتوای یوتیوب',
+        'projects.desc1': 'طراحی و پیاده‌سازی اتوماسیون دسکتاپ صفر تا صد تولید و انتشار محتوا در یوتیوب با پایتون؛ شامل تولید سناریو با هوش مصنوعی، ساخت گویندگی، ساخت کاور و تدوین ویدیوی بلند و شورتس، به همراه زمان‌بندی و انتشار خودکار از طریق YouTube API.',
+        'projects.title2': 'وب‌اپلیکیشن مدیریت قیف فروش زنجیره‌ای و CRM مبتنی بر Flask',
+        'projects.desc2': 'طراحی و توسعه وب‌اپلیکیشن هوشمند قیف فروش و CRM زنجیره‌ای با فریم‌ورک Flask؛ جهت هدایت لیدها بین نقش‌های مختلف تیم فروش و ارائه‌ی داشبوردهای اختصاصی بر اساس دسترسی و نقش کاربران.',
+        'projects.title3': 'وب‌اپلیکیشن مدیریت متمرکز پروژه‌ها و وظایف تیمی (Team Management App)',
+        'projects.desc3': 'توسعه وب‌اپلیکیشن مدیریتی جهت ساماندهی و پیگیری وظایف تیمی با معماری فول‌استک Django و React؛ شامل قابلیت‌های تعریف و تخصیص تسک‌ها، پیگیری پیشرفت پروژه و مدیریت سطح دسترسی اعضا.',
+        'projects.title4': 'سامانه آنلاین مدیریت خدمات، سفارش‌ها و صدور فاکتور چندگانه',
+        'projects.desc4': 'طراحی وب‌اپلیکیشن تحت وب با Flask و Tailwind CSS جهت مدیریت کاتالوگ خدمات، پلن‌ها و مشتریان؛ همراه با قابلیت تولید خودکار ۴ نوع فاکتور PDF (رسمی، ساده، رودمپ و پنل) با پشتیبانی کامل از زبان فارسی.',
+        'projects.title5': 'چت‌بات هوشمند پاسخگویی به اسناد مبتنی بر RAG و مسیریابی قصد کاربر',
+        'projects.desc5': 'توسعه چت‌بات هوشمند مبتنی بر معماری RAG و مدل‌های محلی Ollama؛ مجهز به مسیریاب هوشمند Intent Router برای جداسازی مکالمات عمومی از پرسش‌های تخصصی اسناد و دارای پایگاه برداری FAISS ایزوله به ازای هر نشست کاری (Session).',
+        'projects.title6': 'سامانه هوشمند پایش تلگرام و شناسایی لیدهای فروش بر اساس صنف کاری',
+        'projects.desc6': 'طراحی و پیاده‌سازی سیستم رویدادمحور برای تحلیل پیام‌های گروه‌های تلگرامی با Telethon و Celery؛ دارای موتور تطبیق کلمات کلیدی، رتبه‌بندی سیگنال‌های خرید (Lead Scoring) و پنل مدیریت و API هویت‌سنجی‌شده با FastAPI و PostgreSQL.',
+        'projects.title7': 'سامانه فروشگاهی تلگرام با قابلیت همگام‌سازی خودکار و وب‌سایت وردپرس/ووکامرس',
+        'projects.desc7': 'طراحی ربات تلگرام فروشگاهی با پایتون و پنل مدیریتی Flask جهت همگام‌سازی دوطرفه کاتالوگ محصولات و دسته‌بندی‌های ووکامرس؛ مجهز به پایگاه‌داده سریع SQLite، کیبورد اینلاین صفحه‌بندی‌شده و قابلیت مدیریت پروکسی و حالت‌های Webhook/Polling.',
+        'projects.title8': 'پلاگین اختصاصی مدیریت دایرکتوری مشاغل، لندینگ پیج و اشتراک در وردپرس',
+        'projects.desc8': 'توسعه پلاگین جامع PHP برای وردپرس جهت تبدیل سایت به دایرکتوری مشاغل؛ شامل ساخت صفحات لندینگ اختصاصی، سطوح دسترسی کاربران، سیستم اشتراک و درگاه پرداخت زرین‌پال، پنل اختصاصی کسب‌وکارها و ویجت‌های Elementor.',
+        'projects.title9': 'سامانه اتوماسیون دسکتاپ شبیه‌سازی رفتار کاربر و پایش پخش ویدیو',
+        'projects.desc9': 'پیاده‌سازی ابزار دسکتاپ تست و اتوماسیون پخش ویدیو با Playwright و CustomTkinter؛ دارای قابلیت مدیریت نشست‌های همزمان، ذخیره‌سازی کوکی و تاریخچه برای شبیه‌سازی کاربران واقعی، به همراه خط لوله ارزیابی پروکسی و گزارش‌گیری خودکار.',
+        'projects.title': 'مهندس اتوماسیون پایتون و بینایی ماشین',
+        'projects.desc': 'یک سیستم اتوماسیون دسکتاپ سرتاسری برای تولید و انتشار محتوای یوتیوب توسعه دادم؛ شامل تولید متن با LLM، صدای TTS، ویرایش خودکار تصویر و ویدیو و آپلود زمان‌بندی‌شده از طریق YouTube Data API.',
+        'projects.viewRepo': 'مشاهده مخزن',
+        'projects.openSource': 'متن‌باز',
+        'projects.licensed': 'دارای مجوز',
+        'projects.viewGithub': 'مشاهده جزئیات',
+        'experience.heading': 'سوابق و درباره من',
+        'experience.role1': 'توسعه‌دهنده پایتون و متخصص هوش مصنوعی',
+        'experience.bio1': 'با بیش از ۳ سال تجربه در مهندسی نرم‌افزار، تمرکز اصلی من بر روی پایتون، پیاده‌سازی راهکارهای هوش مصنوعی و معماری اتوماسیون است. در طول مسیر حرفه‌ای خود، سیستم‌های بک‌اند مقیاس‌پذیر و راهکارهای وب را از ایده تا پیاده‌سازی طراحی کرده‌ام. علاوه بر اکوسیستم پایتون، تسلط بالایی بر معماری‌های اصلی وب، مدیریت پایگاه‌داده و توسعه پلاگین‌های اختصاصی PHP دارم.',
+        'experience.bio2': 'در کنار روش‌های مرسوم مهندسی، تجربه عملی در ساخت و توزیع پروژه‌ها با استفاده از متدولوژی Vibe Coding و ابزارهای مبتنی بر هوش مصنوعی دارم. این موضوع به من اجازه می‌دهد سرعت توسعه را به شکل چشمگیری افزایش داده و منطق‌های پیچیده کسب‌وکار را به کدهای تمیز و آماده تولید تبدیل کنم.',
+        'experience.bio3': 'با اتکا به ذهنیت پژوهش‌محور و مهارت‌های قوی در حل مسئله، خود را متعهد به استانداردهای مدرن نرم‌افزار می‌دانم. قدرت یادگیری سریع من را قادر می‌سازد تا به سرعت با فناوری‌های جدید سازگار شده و بهترین راهکارهای مهندسی را اجرا کنم.',
+        'experience.company2NameLines': 'تیم<br>بالتازار',
+        'experience.role2': 'توسعه‌دهنده فول‌استک',
+        'experience.desc2': 'با بهره‌گیری از ۲ سال تجربه در بالتازار، در محیطی استارتاپی و پرشتاب، پروژه‌های متنوعی را ساختم، پیاده‌سازی و مستقر کردم و از طریق همکاری مؤثر بین‌بخشی به نتایجی تأثیرگذار دست یافتم.',
+        'contact.heading': 'تماس با من',
+        'contact.telegramLabel': 'تلگرام',
+        'contact.telegramDesc': 'مستقیم پیام بدهید، سریع‌ترین راه برای ارتباط با من.',
+        'contact.openTelegram': 'باز کردن تلگرام',
+        'contact.copyId': 'کپی آیدی',
+        'contact.emailLabel': 'ایمیل',
+        'contact.emailDesc': 'ایمیل را ترجیح می‌دهید؟ هر وقت خواستید برایم بنویسید.',
+        'contact.sendEmail': 'ارسال ایمیل',
+        'contact.copyEmail': 'کپی ایمیل',
+        'contact.phoneLabel': 'تلفن',
+        'contact.phoneDesc': 'برای یک تماس سریع، هر کجا که هستید، در تماس باشید.',
+        'contact.callNow': 'تماس بگیرید',
+        'contact.copyNumber': 'کپی شماره',
+        'footer.copyright': '© تمامی حقوق برای محمد طاها حسین‌زاده محفوظ است',
+        'copied': 'کپی شد!',
+        'copyFailed': 'کپی ناموفق بود',
+      },
+    };
+
+    // ---- i18n: apply / switch language ----
+    let currentLang = 'en';
+    const langToggleBtn = document.getElementById('lang-toggle');
+    const langToggleLabel = document.getElementById('lang-toggle-label');
+
+    function applyLanguage(lang) {
+      if (!I18N[lang]) lang = 'en';
+      currentLang = lang;
+
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[lang][key] !== undefined) el.textContent = I18N[lang][key];
+      });
+
+      document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+        const key = el.getAttribute('data-i18n-html');
+        if (I18N[lang][key] !== undefined) el.innerHTML = I18N[lang][key];
+      });
+
+      document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+        const key = el.getAttribute('data-i18n-aria');
+        if (I18N[lang][key] !== undefined) el.setAttribute('aria-label', I18N[lang][key]);
+      });
+
+      // Swap project screenshots between the EN and FA versions of each image
+      document.querySelectorAll('[data-i18n-img]').forEach((img) => {
+        if (!img.dataset.srcEn) img.dataset.srcEn = img.getAttribute('src');
+        const faSrc = img.getAttribute('data-i18n-img');
+        img.src = lang === 'fa' ? faSrc : img.dataset.srcEn;
+      });
+
+      // Toggle button always shows/targets the OTHER language
+      const otherLang = lang === 'fa' ? 'en' : 'fa';
+      if (langToggleLabel) langToggleLabel.textContent = otherLang.toUpperCase();
+      if (langToggleBtn) {
+        langToggleBtn.setAttribute('data-lang-target', otherLang);
+        langToggleBtn.setAttribute('aria-label', otherLang === 'fa' ? 'تغییر زبان به فارسی' : 'Switch language to English');
+      }
+
+      try { localStorage.setItem('portfolio-lang', lang); } catch (e) { /* storage unavailable */ }
+    }
+
+    if (langToggleBtn) {
+      langToggleBtn.addEventListener('click', () => {
+        applyLanguage(langToggleBtn.getAttribute('data-lang-target') || 'fa');
+      });
+    }
+
+    let initialLang = 'en';
+    try {
+      const stored = localStorage.getItem('portfolio-lang');
+      if (stored === 'fa' || stored === 'en') initialLang = stored;
+    } catch (e) { /* storage unavailable */ }
+    applyLanguage(initialLang);
+
+    // ---- Scroll reveal via IntersectionObserver ----
+    const revealEls = document.querySelectorAll('.reveal');
+    const revealIO = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          revealIO.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach((el) => revealIO.observe(el));
+
+    // ---- Active nav-link highlighting via IntersectionObserver ----
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = ['hero', 'projects', 'experience', 'contact']
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    function setActiveLink(id) {
+      navLinks.forEach((link) => {
+        link.classList.toggle('is-active', link.getAttribute('data-target') === id);
+      });
+    }
+
+    const sectionIO = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveLink(entry.target.id);
+        }
+      });
+    }, { threshold: 0, rootMargin: '-45% 0px -45% 0px' });
+    sections.forEach((sec) => sectionIO.observe(sec));
+
+    // ---- Combined scroll-driven effects (parallax, spotlight, scroll-to-top) ----
+    const heroPhoto = document.getElementById('hero-photo');
+    const cardImages = document.querySelectorAll('.card-img');
+    const companies = document.querySelectorAll('.exp-company');
+    const glyphs = document.querySelectorAll('.contact-glyph');
+    const scrollTopBtn = document.getElementById('scroll-top');
+
+    let ticking = false;
+
+    function onScroll() {
+      const y = window.scrollY || window.pageYOffset;
+      const vh = window.innerHeight;
+      const center = vh / 2;
+
+      // Hero portrait parallax
+      if (heroPhoto) {
+        const offset = Math.min(y * 0.12, 40);
+        heroPhoto.style.transform = `translateY(${offset}px) scale(1.06)`;
+      }
+
+      // Project card image parallax
+      cardImages.forEach((img) => {
+        const rect = img.parentElement.getBoundingClientRect();
+        const elCenter = rect.top + rect.height / 2;
+        const distance = elCenter - center;
+        const off = Math.max(Math.min(distance * 0.06, 18), -18);
+        img.style.transform = `translateY(${off}px) scale(1.06)`;
+      });
+
+      // Experience company spotlight
+      companies.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const elCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(center - elCenter);
+        const proximity = Math.max(0, 1 - distance / (vh * 0.6));
+        const lightness = 42 + proximity * 58;
+        const scale = 1 + proximity * 0.04;
+        el.style.color = `hsl(0, 0%, ${lightness}%)`;
+        el.style.transform = `scale(${scale})`;
+        el.style.transformOrigin = 'left center';
+      });
+
+      // Contact glyph parallax
+      glyphs.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const elCenter = rect.top + rect.height / 2;
+        const distance = elCenter - center;
+        const off = Math.max(Math.min(distance * 0.05, 10), -10);
+        el.style.transform = `translateY(${off}px)`;
+      });
+
+      // Scroll-to-top visibility
+      if (scrollTopBtn) {
+        if (y > 500) {
+          scrollTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+          scrollTopBtn.classList.add('opacity-100');
+        } else {
+          scrollTopBtn.classList.add('opacity-0', 'pointer-events-none');
+          scrollTopBtn.classList.remove('opacity-100');
+        }
+      }
+
+      ticking = false;
+    }
+
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        window.requestAnimationFrame(onScroll);
+        ticking = true;
+      }
+    }, { passive: true });
+    window.addEventListener('resize', onScroll);
+    onScroll();
+
+    if (scrollTopBtn) {
+      scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    // ---- Copy to clipboard with visual feedback (language-aware) ----
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      const labelEl = document.getElementById(btn.getAttribute('data-copy-target'));
+      const labelKey = labelEl.getAttribute('data-i18n');
+      const fallbackText = labelEl.textContent;
+
+      function restoreLabel() {
+        labelEl.textContent = (labelKey && I18N[currentLang][labelKey] !== undefined)
+          ? I18N[currentLang][labelKey]
+          : fallbackText;
+      }
+
+      btn.addEventListener('click', async () => {
+        const value = btn.getAttribute('data-copy');
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(value);
+          } else {
+            const tmp = document.createElement('textarea');
+            tmp.value = value;
+            tmp.style.position = 'fixed';
+            tmp.style.opacity = '0';
+            document.body.appendChild(tmp);
+            tmp.select();
+            document.execCommand('copy');
+            document.body.removeChild(tmp);
+          }
+          labelEl.textContent = I18N[currentLang].copied;
+          btn.classList.add('bg-accent', 'border-accent');
+          btn.classList.remove('bg-black', 'border-white/10');
+        } catch (err) {
+          labelEl.textContent = I18N[currentLang].copyFailed;
+        } finally {
+          setTimeout(() => {
+            restoreLabel();
+            btn.classList.remove('bg-accent', 'border-accent');
+            btn.classList.add('bg-black', 'border-white/10');
+          }, 1800);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
