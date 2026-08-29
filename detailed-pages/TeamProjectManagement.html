@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — Team Projects Management</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the portfolio green */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 02 — Team Projects Management Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Grade Specification</span>
+              <span class="fa-text hidden">مستندات فنی سطح تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: TPM-BALTAZAR-2026-001</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight">
+              <span class="relative inline-block">
+                <span class="relative z-10">T</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v1</span>
+              </span>EAM PROJECTS MANAGEMENT
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">Team Projects Management</span> — an internal Baltazar Team business tool for catalog management, customer records, order capture, and automated Persian RTL PDF invoicing in four formats.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">Team Projects Management</span> — یک ابزار داخلی تیم بالتازار برای مدیریت کاتالوگ خدمات، ثبت مشتریان، ثبت سفارش و صدور خودکار فاکتور PDF فارسی (راست‌به‌چپ) در چهار قالب مختلف.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <a href="https://teamprojectsmanagement.onrender.com/" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-solid fa-globe"></i>
+              <span class="en-text">Live Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نسخه زنده</span>
+              <span class="font-mono text-xs opacity-70 hidden sm:inline">teamprojectsmanagement.onrender.com</span>
+            </a>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v1.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production (deployed)</span></span>
+            <span>OWNER <span class="text-paper font-semibold">Team Baltazar</span></span>
+            <span>STACK <span class="text-paper font-semibold">Flask · JSON</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          <strong class="text-ink">Team Projects Management</strong> is an internal, single-tenant business-operations tool built for <strong class="text-ink">Team Baltazar</strong> to manage a service catalog (categories, services, and bundled plans), maintain a customer registry, capture sales orders, and automatically generate Persian (Farsi), right-to-left (RTL) PDF invoices in four distinct formats. The system is a <strong class="text-ink">Python/Flask monolith</strong> with a <strong class="text-ink">flat-file JSON persistence layer</strong> (no relational database), a server-rendered Jinja2 + Tailwind front end, and a dual-engine PDF pipeline combining ReportLab and Playwright/Chromium, with full Persian typography via <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">arabic-reshaper</code>, <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">python-bidi</code>, and the custom <strong class="text-ink">Dana</strong> font family.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          <strong class="text-ink">Team Projects Management</strong> یک ابزار داخلی و تک‌مستأجری برای <strong class="text-ink">تیم بالتازار</strong> است که کاتالوگ خدمات (دسته‌بندی‌ها، خدمات و پلن‌های ترکیبی) را مدیریت می‌کند، دفتر مشتریان را نگهداری می‌کند، سفارش‌های فروش را ثبت می‌کند و به‌صورت خودکار فاکتورهای PDF فارسی و راست‌به‌چپ (RTL) را در چهار قالب متفاوت تولید می‌کند. این سیستم یک <strong class="text-ink">مونولیت Python/Flask</strong> با <strong class="text-ink">لایه ماندگاری فایل‌محور JSON</strong> (بدون پایگاه‌داده رابطه‌ای)، رابط کاربری Jinja2 + Tailwind رندرشده سمت سرور، و یک پایپ‌لاین PDF دو‌موتوره ترکیبی از ReportLab و Playwright/Chromium است که تایپوگرافی کامل فارسی را از طریق <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">arabic-reshaper</code>، <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">python-bidi</code> و فونت اختصاصی <strong class="text-ink">دانا</strong> پشتیبانی می‌کند.
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Invoice Formats</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">فرمت فاکتور</p>
+            <p class="font-display text-2xl mt-1 text-rust">4</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Persistence</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">JSON</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">PDF Engines</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">موتور PDF</p>
+            <p class="font-display text-2xl mt-1 text-rust">2</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Status</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">وضعیت</p>
+            <p class="font-display text-2xl mt-1 text-rust">Live</p>
+          </div>
+        </div>
+
+        <!-- Roles -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Business Domain — Operational Roles</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">دامنه کسب‌وکار — نقش‌های عملیاتی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Portal</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بخش</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5">
+                <td class="px-4 py-3 font-mono text-rust"><span class="en-text">Admin / Manager</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیر</span></td>
+                <td class="px-4 py-3 font-mono text-xs text-ink/80">/modir</td>
+                <td class="px-4 py-3 text-ink/70"><span class="en-text">Curates the catalog: hierarchical categories, individually priced services, and combination "plans"; manages the customer registry</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت کاتالوگ: دسته‌بندی‌های سلسله‌مراتبی، خدمات قیمت‌گذاری‌شده و پلن‌های ترکیبی؛ مدیریت دفتر مشتریان</span></td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3 font-mono text-rust"><span class="en-text">Sales / Customer-facing</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فروش / اپراتور</span></td>
+                <td class="px-4 py-3 font-mono text-xs text-ink/80">/ (order page)</td>
+                <td class="px-4 py-3 text-ink/70"><span class="en-text">Selects services and/or plans for a customer (new or existing), captures order details, and issues one of four invoice types as a downloadable PDF</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتخاب خدمات و/یا پلن برای مشتری (جدید یا موجود)، ثبت جزئیات سفارش و صدور یکی از چهار نوع فاکتور به‌صورت PDF قابل دانلود</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Interest</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">علاقه‌مندی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Team Baltazar</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Accurate, branded, Persian-language invoicing without third-party SaaS dependency</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتور دقیق، برندشده و فارسی بدون وابستگی به SaaS ثالث</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust"><span class="en-text">Sales operators</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اپراتورهای فروش</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fast order capture, flexible invoice formats (standard, simple, roadmap, tiered-panel)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت سریع سفارش، فرمت‌های منعطف فاکتور (استاندارد، ساده، نقشه‌راه، پنل سطح‌بندی‌شده)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust"><span class="en-text">End customers</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مشتریان نهایی</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Clear, professional, correctly formatted Persian invoices</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتورهای فارسی شفاف، حرفه‌ای و درست‌قالب‌بندی‌شده</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust"><span class="en-text">Maintaining developer(s)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توسعه‌دهنده(ها)</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">A small, dependency-light, file-based system that is easy to self-host and back up</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سیستمی کوچک، سبک از نظر وابستگی و فایل‌محور که میزبانی و پشتیبان‌گیری از آن ساده است</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tech Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T1</span><span class="text-ink/75 text-sm leading-relaxed en-text">Provide full <strong class="text-ink">CRUD</strong> management of categories (parent/child hierarchy), services, plans, and customers without requiring a database server.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارائه مدیریت کامل <strong class="text-ink">CRUD</strong> برای دسته‌بندی‌ها (سلسله‌مراتب والد/فرزند)، خدمات، پلن‌ها و مشتریان بدون نیاز به سرور پایگاه‌داده.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T2</span><span class="text-ink/75 text-sm leading-relaxed en-text">Support two order pathways: catalog-based standard orders and freeform custom orders (roadmap / simple / tiered-panel).</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">پشتیبانی از دو مسیر سفارش: سفارش استاندارد کاتالوگ‌محور و سفارش سفارشی آزاد (نقشه‌راه / ساده / پنل سطح‌بندی‌شده).</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T3</span><span class="text-ink/75 text-sm leading-relaxed en-text">Generate legally presentable, Persian RTL PDF invoices in four distinct visual formats from a single order record.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تولید فاکتورهای PDF فارسی و RTL قابل ارائه قانونی در چهار قالب بصری متفاوت از یک رکورد سفارش.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T4</span><span class="text-ink/75 text-sm leading-relaxed en-text">Keep the operational footprint minimal: a single container image, no external DB, no message broker, no background worker infrastructure.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">حداقل نگه‌داشتن ردپای عملیاتی: یک ایمیج کانتینر، بدون DB خارجی، بدون message broker و بدون زیرساخت worker پس‌زمینه.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T5</span><span class="text-ink/75 text-sm leading-relaxed en-text">Preserve full audit trail of orders and generated receipts on the container's persistent filesystem.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">حفظ ردیابی کامل سفارش‌ها و رسیدهای صادرشده روی فایل‌سیستم پایدار کانتینر.</span></li>
+        </ol>
+
+        <!-- Out of scope -->
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink en-text">Non-Goals / Explicit Scope Boundaries</h3>
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده / مرزهای صریح دامنه</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">No multi-tenant support (single organization, no auth layer in the current implementation); no relational database, ORM, or query engine; no payment gateway integration (issues invoices, not payment collection); no user account system / login flow.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون پشتیبانی چند‌مستأجری (تک‌سازمانی، بدون لایه احراز هویت در پیاده‌سازی فعلی)؛ بدون پایگاه‌داده رابطه‌ای، ORM یا موتور کوئری؛ بدون یکپارچگی درگاه پرداخت (صدور فاکتور، نه دریافت وجه)؛ بدون سیستم حساب کاربری / فرآیند ورود.</p>
+
+        <!-- Tech stack -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Tech Stack & Requirements</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری‌ها و پیش‌نیازها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Technology</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Presentation</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Jinja2, Tailwind CSS, vanilla JS</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Server-rendered pages</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صفحات رندرشده سمت سرور</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Web / App</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Flask &gt;= 3.0.0 (app.py factory)</td><td class="px-4 py-3 text-ink/60"><span class="en-text">HTTP routes, validation, orchestration</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیرهای HTTP، اعتبارسنجی و هماهنگی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">PDF (native)</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">ReportLab &gt;= 4.0.0</td><td class="px-4 py-3 text-ink/60"><span class="en-text">"current" invoice type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع فاکتور "current"</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">PDF (HTML→PDF)</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Playwright &gt;= 1.40.0 + Chromium</td><td class="px-4 py-3 text-ink/60"><span class="en-text">simple / roadmap / panel invoices</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتورهای simple / roadmap / panel</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">i18n / RTL</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">arabic-reshaper, python-bidi</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Persian glyph shaping + bidi ordering</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شکل‌دهی حروف فارسی + ترتیب bidi</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Persistence</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Flat JSON files (json_store.py)</td><td class="px-4 py-3 text-ink/60"><span class="en-text">No DB server; read/rewrite in full</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون سرور DB؛ خواندن/نوشتن کامل فایل</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">WSGI / Runtime</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Gunicorn, Python 3.10+</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Production entry point</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقطه ورود تولید</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Architectural Style — Layered Modular Monolith</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">سبک معماری — مونولیت ماژولار لایه‌ای</h3>
+        <p class="text-ink/75 text-sm leading-relaxed max-w-2xl mb-6 en-text">There is no <code class="text-xs">models/</code> or <code class="text-xs">services/</code> package split at the filesystem level — the application deliberately keeps everything in four top-level modules (<code class="text-xs">app.py</code>, <code class="text-xs">json_store.py</code>, <code class="text-xs">receipt_pdf.py</code>, <code class="text-xs">seed.py</code>) rather than a package hierarchy, which is appropriate for its scale but called out as a scaling constraint below.</p>
+        <p class="text-ink/75 text-sm leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;">در سطح فایل‌سیستم بسته‌بندی جداگانه‌ای برای <code class="text-xs">models/</code> یا <code class="text-xs">services/</code> وجود ندارد — اپلیکیشن به‌عمد همه چیز را در چهار ماژول سطح بالا (<code class="text-xs">app.py</code>، <code class="text-xs">json_store.py</code>، <code class="text-xs">receipt_pdf.py</code>، <code class="text-xs">seed.py</code>) نگه می‌دارد که برای مقیاس فعلی مناسب است اما به‌عنوان یک محدودیت مقیاس‌پذیری در ادامه ذکر شده است.</p>
+
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+    Presentation["Presentation Layer<br/>Jinja2 + Tailwind + vanilla JS"]
+    App["Application / Web Layer<br/>Flask routes (app.py)"]
+    Domain["Domain / Service Layer<br/>Catalog resolution, plan expansion, price parsing"]
+    PDF["PDF Rendering Layer<br/>ReportLab + Playwright/Chromium (receipt_pdf.py)"]
+    Persist["Persistence Layer<br/>json_store.py — JSON CRUD"]
+    Storage["Storage<br/>Database/*.json, reciept/*.pdf"]
+    Presentation --> App --> Domain --> PDF --> Persist --> Storage
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+    subgraph Client["Client Browser"]
+        AdminUI["Admin Dashboard /modir"]
+        OrderUI["Order Page /"]
+    end
+    subgraph FlaskApp["Flask Application (create_app)"]
+        Routes["HTTP Routes"]
+        Domain["Domain Helpers"]
+    end
+    subgraph Persistence["json_store.py"]
+        Store["read_list / write_list<br/>append_* / update_* / delete_*"]
+    end
+    subgraph PDFEngine["receipt_pdf.py"]
+        RL["ReportLab — create_receipt_pdf"]
+        PW["Playwright — simple / roadmap / panel"]
+    end
+    subgraph FS["Filesystem"]
+        DB[("Database/*.json")]
+        Receipts[("reciept/invoice-*.pdf")]
+    end
+    AdminUI --> Routes
+    OrderUI --> Routes
+    Routes --> Domain --> Store <--> DB
+    Routes --> RL --> Receipts
+    Routes --> PW --> Receipts
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Order-to-Invoice Lifecycle</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چرخه سفارش تا فاکتور</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Customer as Sales Operator (/)
+    participant Flask as Flask App
+    participant Store as json_store.py
+    participant PDF as receipt_pdf.py
+    participant FS as Filesystem
+
+    Customer->>Flask: GET /
+    Flask->>Store: read categories/services/plans
+    Flask-->>Customer: render order.html
+
+    Customer->>Flask: POST /orders
+    Flask->>Store: find/append customer
+    Flask->>Store: append_order(total, invoice_type)
+    Flask-->>Customer: 200 order_id
+
+    Customer->>Flask: POST /issue-invoice
+    Flask->>Store: find_order_by_source
+    Flask->>PDF: issue_invoice_for_stored_order
+    alt invoice_type == current
+        PDF->>PDF: ReportLab + arabic-reshaper + bidi
+    else simple / roadmap / panel
+        PDF->>PDF: Jinja2 template + Playwright print-to-PDF
+    end
+    PDF->>FS: write reciept/invoice-uuid.pdf
+    Flask-->>Customer: 200 receipt_url
+
+    Customer->>Flask: GET /receipts/invoice-uuid.pdf
+    Flask-->>Customer: PDF download
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory Structure</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار پوشه‌ها</h3>
+        <div class="relative mb-4">
+          <button onclick="copyBlock('dir-structure', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="dir-structure">TeamProjectsManagement/
+├── app.py                 # Flask application factory — all HTTP routes
+├── json_store.py          # Persistence — JSON CRUD, price parsing, order lookup
+├── receipt_pdf.py         # PDF generation — 4 invoice engines
+├── seed.py                # Database seeding script
+├── requirements.txt
+├── Dockerfile              # Playwright base image
+├── tailwind.js
+├── assets/
+│   ├── fonts/Dana-Black.ttf
+│   └── images/logo.png
+├── Database/
+│   ├── categories.json
+│   ├── services.json
+│   ├── plans.json
+│   ├── customers.json
+│   ├── orders.json
+│   └── custom-order.json
+├── templates/
+│   ├── index.html          # /modir admin dashboard
+│   ├── order.html          # / order page
+│   ├── factor-roadmap.html
+│   ├── factor-simple.html
+│   └── factor-panel.html
+└── reciept/                 # generated PDFs (name preserved intentionally)
+    └── invoice-&lt;uuid&gt;.pdf</code></pre>
+        </div>
+        <p class="text-ink/60 text-xs leading-relaxed max-w-2xl mb-10 en-text"><i class="fa-solid fa-circle-info mr-1"></i>The output directory is intentionally named <code class="text-xs">reciept/</code> (a preserved naming artifact), not <code class="text-xs">receipt/</code> — deployment/backup tooling must reference the exact name.</p>
+        <p class="text-ink/60 text-xs leading-relaxed max-w-2xl mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;"><i class="fa-solid fa-circle-info ml-1"></i>پوشه خروجی به‌عمد <code class="text-xs">reciept/</code> نام‌گذاری شده (یک نام‌گذاری تاریخی حفظ‌شده)، نه <code class="text-xs">receipt/</code> — ابزارهای استقرار/پشتیبان‌گیری باید دقیقاً همین نام را استفاده کنند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Architectural Constraints & Technical Debt</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت‌های معماری و بدهی فنی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[600px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraint</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Impact</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تأثیر</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Mitigation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌حل پیشنهادی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80"><span class="en-text">Full-file JSON read/write on every mutation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خواندن/نوشتن کامل فایل JSON در هر تغییر</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Not safe under concurrent writers</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">در نگارش هم‌زمان ایمن نیست</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Add file locking or migrate to SQLite</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">افزودن file locking یا مهاجرت به SQLite</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80"><span class="en-text">No auth on /modir or mutating endpoints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون احراز هویت روی /modir یا endpoint‌های تغییردهنده</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Anyone with network access can alter data</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هرکسی با دسترسی شبکه می‌تواند داده را تغییر دهد</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Session auth or reverse-proxy basic auth</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت نشست یا basic auth در reverse-proxy</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80"><span class="en-text">Playwright/Chromium for 3 of 4 invoice types</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">وابستگی Playwright/Chromium برای ۳ از ۴ نوع فاکتور</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Heavier image, slower cold starts</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایمیج سنگین‌تر، cold start کندتر</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Acceptable trade-off for visual fidelity</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مصالحه قابل‌قبول برای کیفیت بصری</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/80"><span class="en-text">Monolithic app.py (938 lines), single factory</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">app.py مونولیتیک (۹۳۸ خط)، یک factory</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Harder to unit-test and scale</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تست واحد و مقیاس‌دهی سخت‌تر</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Extract into Flask Blueprints as it grows</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جداسازی به Flask Blueprints با رشد پروژه</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 003 DATABASE SCHEMA ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="طرح داده‌ها"></div>
+
+        <p class="text-ink/75 text-sm leading-relaxed max-w-2xl mb-8 en-text">There is no relational database engine. Each entity is stored as a <strong class="text-ink">JSON array of objects</strong> in its own file under <code class="text-xs">Database/</code>, accessed exclusively through <code class="text-xs">json_store.py</code>. Every record uses a <strong class="text-ink">UUIDv4</strong> string as its primary key (<code class="text-xs">id</code>).</p>
+        <p class="text-ink/75 text-sm leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;">هیچ موتور پایگاه‌داده رابطه‌ای وجود ندارد. هر موجودیت به‌صورت <strong class="text-ink">آرایه JSON از اشیاء</strong> در فایل مخصوص خود زیر <code class="text-xs">Database/</code> ذخیره شده و فقط از طریق <code class="text-xs">json_store.py</code> در دسترس است. هر رکورد از یک رشته <strong class="text-ink">UUIDv4</strong> به‌عنوان کلید اصلی (<code class="text-xs">id</code>) استفاده می‌کند.</p>
+
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+erDiagram
+    CATEGORY ||--o{ CATEGORY : "parent_id"
+    CATEGORY ||--o{ SERVICE : "category_ids[]"
+    CATEGORY ||--o{ PLAN : "category_ids[]"
+    SERVICE  ||--o{ PLAN : "service_ids[]"
+    CUSTOMER ||--o{ ORDER : "customer_id + snapshot"
+    CUSTOMER ||--o{ CUSTOM_ORDER : "customer_id + snapshot"
+    ORDER    }o--o{ PLAN : "plan_ids[]"
+    CUSTOM_ORDER ||--o{ ROADMAP_STEP : "steps[]"
+    CUSTOM_ORDER ||--o{ SIMPLE_LINE : "simple_lines[]"
+    CUSTOM_ORDER ||--o{ PANEL_PLAN : "panel_plans[]"
+
+    CATEGORY { string id PK
+        string name
+        string kind
+        string parent_id FK }
+    SERVICE { string id PK
+        string name
+        array category_ids
+        string price
+        array terms }
+    PLAN { string id PK
+        string name
+        array category_ids
+        array service_ids
+        string price }
+    CUSTOMER { string id PK
+        string name
+        string phone
+        string address }
+    ORDER { string id PK
+        string created_at
+        string customer_id FK
+        number total_price
+        string invoice_type }
+    CUSTOM_ORDER { string id PK
+        string customer_id FK
+        number total_price
+        string invoice_type }
+          </pre>
+        </div>
+
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-10 en-text"><strong class="text-ink">Design rationale — denormalization by intent:</strong> both <code class="text-xs">orders</code> and <code class="text-xs">custom-order</code> embed a full customer snapshot (name, phone, address) and, for standard orders, a service/plan detail snapshot at creation time. Invoices must remain historically accurate even if a customer's contact details or a service's price/terms change later in the admin panel.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;"><strong class="text-ink">منطق طراحی — دنرمال‌سازی عمدی:</strong> هر دو <code class="text-xs">orders</code> و <code class="text-xs">custom-order</code> یک اسنپ‌شات کامل از مشتری (نام، تلفن، آدرس) و برای سفارش‌های استاندارد، اسنپ‌شات جزئیات خدمت/پلن را در زمان ایجاد جاسازی می‌کنند. فاکتورها باید حتی در صورت تغییر بعدی اطلاعات تماس مشتری یا قیمت/شرایط خدمت در پنل مدیریت، از نظر تاریخی دقیق باقی بمانند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Schema Breakdown</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جزئیات طرح داده</h3>
+        <div class="flex flex-wrap gap-2 mb-4" id="db-filters"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Field</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Type</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Constraints</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Description</th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2 text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 004 API REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API"></div>
+
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-8 en-text">All JSON APIs accept and return <code class="text-xs">Content-Type: application/json</code> unless otherwise noted. Admin CRUD forms use standard HTML form posts and respond with <code class="text-xs">302 Found</code> redirects back to <code class="text-xs">/modir</code>.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام APIهای JSON از <code class="text-xs">Content-Type: application/json</code> استفاده می‌کنند مگر خلاف آن ذکر شود. فرم‌های CRUD مدیریت از HTML form post استاندارد استفاده کرده و با ریدایرکت <code class="text-xs">302</code> به <code class="text-xs">/modir</code> پاسخ می‌دهند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Page & Static Routes</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیرهای صفحه و استاتیک</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono text-xs">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink">/</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Order page — catalog + checkout</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صفحه سفارش — کاتالوگ و تسویه</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink">/modir</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Admin dashboard — full CRUD</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">داشبورد مدیریت — CRUD کامل</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink">/tailwind.js</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Bundled Tailwind CSS JS</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فایل باندل‌شده Tailwind</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink">/assets/&lt;path&gt;</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Static assets (fonts, logo)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دارایی‌های استاتیک (فونت، لوگو)</span></td></tr>
+              <tr><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink">/receipts/&lt;path&gt;</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Serves invoice PDF (path-sanitized)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارائه PDF فاکتور (مسیر پاک‌سازی‌شده)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Admin CRUD Endpoints (Form-Based)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اندپوینت‌های CRUD مدیریت (فرم‌محور)</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Purpose</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono text-xs">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">POST</td><td class="px-4 py-3 text-ink">/add/category</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Create a category</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد دسته‌بندی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">POST</td><td class="px-4 py-3 text-ink">/category/&lt;id&gt;/delete</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Delete category (cascades to services/plans)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">حذف دسته‌بندی (آبشاری به خدمات/پلن)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">POST</td><td class="px-4 py-3 text-ink">/add/service</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Create a service</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد خدمت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">POST</td><td class="px-4 py-3 text-ink">/add/plan</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Create a plan (services resolved server-side)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد پلن (خدمات سمت سرور محاسبه می‌شود)</span></td></tr>
+              <tr><td class="px-4 py-3 text-rust">POST</td><td class="px-4 py-3 text-ink">/add/customer</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"><span class="en-text">Create a customer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد مشتری</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">POST /orders — Create Standard Order</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">POST /orders — ایجاد سفارش استاندارد</h3>
+        <div class="relative mb-4">
+          <button onclick="copyBlock('orders-req', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="orders-req">{
+  "service_ids": ["b129d3a0-..."],
+  "plan_ids": ["568e1dd4-..."],
+  "customer_mode": "new",
+  "customer": { "name": "...", "phone": "...", "address": "..." },
+  "invoice_type": "current"
+}
+
+// 200 OK
+{ "ok": true, "order_id": "d670b189-...", "source": "orders", "invoice_type": "current" }</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">POST /issue-invoice — Render & Persist PDF</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">POST /issue-invoice — رندر و ذخیره PDF</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('issue-req', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="issue-req">{ "source": "orders", "order_id": "d670b189-..." }
+
+// 200 OK
+{ "ok": true, "receipt_path": "reciept/invoice-3f4a1c9e.pdf", "receipt_url": "/receipts/invoice-3f4a1c9e.pdf" }
+
+// Errors: 400 bad_request · 404 not_found · 500 roadmap_pdf · 500 pdf_failed</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Invoice Type → Rendering Engine</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع فاکتور → موتور رندر</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">invoice_type</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Engine</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موتور</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Use Case</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربرد</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">current</td><td class="px-4 py-3 font-mono text-xs text-ink/80">ReportLab</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Standard invoice — full customer table, itemized services, totals</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتور استاندارد — جدول کامل مشتری، اقلام خدمات، جمع کل</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">simple</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Playwright</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Row-based sales invoice</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتور فروش ردیفی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">roadmap</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Playwright</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Phased/staged project invoice with timeline</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتور پروژه مرحله‌ای با نقشه‌راه</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">panel</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Playwright</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Tiered pricing-card invoice (economic → exclusive)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فاکتور پنل قیمتی سطح‌بندی‌شده (اقتصادی تا اختصاصی)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Helper JSON APIs</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">APIهای کمکی JSON</h3>
+        <ul class="space-y-2 max-w-2xl text-sm text-ink/70 en-text">
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">GET /api/customers/search?q=&amp;limit=</code> — substring search over name + phone (limit default 12, max 20)</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">GET /api/services/search?q=&amp;limit=</code> — substring search over service names</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">POST /api/services/quick</code> — idempotent find-or-create for a service by name</li>
+        </ul>
+        <ul class="space-y-2 max-w-2xl text-sm text-ink/70 fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">GET /api/customers/search?q=&amp;limit=</code> — جستجوی زیررشته روی نام و تلفن (پیش‌فرض ۱۲، حداکثر ۲۰)</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">GET /api/services/search?q=&amp;limit=</code> — جستجوی زیررشته روی نام خدمات</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">POST /api/services/quick</code> — یافتن یا ایجاد سریع خدمت بر اساس نام (idempotent)</li>
+        </ul>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی و محیط"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Python Dependency Manifest</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست وابستگی‌های پایتون</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('reqs-txt', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="reqs-txt">flask>=3.0.0
+reportlab>=4.0.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+jinja2>=3.1.0
+playwright>=1.40.0
+gunicorn</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Configuration Variables</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">متغیرهای پیکربندی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[600px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Current Source</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">منبع فعلی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Recommended</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توصیه‌شده</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">PORT</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Hard-coded (Dockerfile EXPOSE 5000)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تعبیه‌شده در Dockerfile (5000)</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Externalize via $PORT for PaaS</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استفاده از $PORT برای PaaS</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">DATABASE_DIR</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Hard-coded: ./Database</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تعبیه‌شده: ./Database</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Externalize to mount a persistent volume</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارجی‌سازی برای mount volume پایدار</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">RECEIPTS_DIR</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Hard-coded: ./reciept</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تعبیه‌شده: ./reciept</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Mount as a persistent volume</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">mount به‌عنوان volume پایدار</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">FLASK_DEBUG</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Off (Gunicorn bypasses app.run)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خاموش (Gunicorn وارد app.run نمی‌شود)</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Must remain unset/False in production</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">باید در تولید غیرفعال بماند</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">SECRET_KEY</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Not currently set</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">در حال حاضر تنظیم نشده</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Must be set before session auth</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">باید قبل از احراز هویت نشست تنظیم شود</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Static & Font Assets</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">دارایی‌های استاتیک و فونت</h3>
+        <ul class="space-y-2 max-w-2xl text-sm text-ink/70 en-text">
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">assets/fonts/Dana-Black.ttf</code> — Persian typeface for UI + all PDF invoices</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">assets/images/logo.png</code> — Baltazar team logo (invoice headers, UI branding)</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">/tailwind.js</code> — Tailwind Play CDN bundle served locally</li>
+        </ul>
+        <ul class="space-y-2 max-w-2xl text-sm text-ink/70 fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">assets/fonts/Dana-Black.ttf</code> — فونت فارسی برای رابط کاربری و همه فاکتورهای PDF</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">assets/images/logo.png</code> — لوگوی تیم بالتازار (هدر فاکتور، برندینگ رابط)</li>
+          <li><code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">/tailwind.js</code> — باندل Tailwind ارائه‌شده به‌صورت محلی</li>
+        </ul>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Containerization</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کانتینری‌سازی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('dockerfile-tpm', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="dockerfile-tpm">FROM mcr.microsoft.com/playwright/python:v1.45.0-jammy
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Build & Run — Local Docker</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساخت و اجرا — Docker محلی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('docker-run', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="docker-run">docker build -t team-projects-management:latest .
+
+docker run -d --name tpm -p 5000:5000 \
+  -v $(pwd)/Database:/app/Database \
+  -v $(pwd)/reciept:/app/reciept \
+  team-projects-management:latest</code></pre>
+        </div>
+        <p class="text-ink/60 text-xs leading-relaxed max-w-2xl mb-10 en-text"><i class="fa-solid fa-triangle-exclamation mr-1 text-amber"></i>Without the volume mounts above, both the JSON "database" and every generated invoice PDF live only in the container's writable layer and are <strong class="text-ink">lost on container recreation</strong>.</p>
+        <p class="text-ink/60 text-xs leading-relaxed max-w-2xl mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;"><i class="fa-solid fa-triangle-exclamation ml-1 text-amber"></i>بدون mount کردن volume‌های بالا، هم پایگاه‌داده JSON و هم هر PDF فاکتور فقط در لایه نوشتنی کانتینر باقی می‌مانند و با <strong class="text-ink">بازسازی کانتینر از بین می‌روند</strong>.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Current Production Deployment</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">استقرار فعلی تولید</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-4 en-text">The live instance (<a class="text-rust hover:underline" href="https://teamprojectsmanagement.onrender.com/" target="_blank" rel="noopener">teamprojectsmanagement.onrender.com</a>) is deployed on <strong class="text-ink">Render</strong>. Render's ephemeral filesystem means <code class="text-xs">Database/</code> and <code class="text-xs">reciept/</code> must be backed by a Render persistent disk, or catalog data and invoices are lost on every redeploy.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;">نسخه زنده (<a class="text-rust hover:underline" href="https://teamprojectsmanagement.onrender.com/" target="_blank" rel="noopener">teamprojectsmanagement.onrender.com</a>) روی <strong class="text-ink">Render</strong> مستقر شده است. فایل‌سیستم موقتی Render یعنی <code class="text-xs">Database/</code> و <code class="text-xs">reciept/</code> باید به یک دیسک پایدار Render متصل شوند، در غیر این صورت داده کاتالوگ و فاکتورها با هر ری‌دیپلوی از بین می‌روند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD (Recommended)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">CI/CD (پیشنهادی)</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-6">
+          <pre class="mermaid">
+flowchart LR
+    A[Push to main] --> B[Checkout code]
+    B --> C[Setup Python 3.11]
+    C --> D[pip install -r requirements.txt]
+    D --> E[playwright install --with-deps chromium]
+    E --> F[Smoke test app import]
+    F --> G[Build Docker image]
+    G --> H[Deploy to Render]
+    H --> I[Health-check GET /]
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-8 mb-4 text-ink en-text">Backup & Data Durability</h3>
+        <h3 class="font-display text-lg mt-8 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پشتیبان‌گیری و پایداری داده</h3>
+        <ul class="space-y-2 max-w-2xl text-sm text-ink/70 en-text">
+          <li>Schedule periodic snapshotting of the <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">Database/</code> directory (nightly tar + off-host copy, or disk snapshots).</li>
+          <li>Treat <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">reciept/*.pdf</code> as an audit trail — retain per applicable invoicing regulations.</li>
+        </ul>
+        <ul class="space-y-2 max-w-2xl text-sm text-ink/70 fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li>زمان‌بندی اسنپ‌شات دوره‌ای از پوشه <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">Database/</code> (tar شبانه + کپی خارج از سرور، یا اسنپ‌شات دیسک).</li>
+          <li>با <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">reciept/*.pdf</code> به‌عنوان ردیابی ممیزی رفتار کنید — طبق مقررات صدورفاکتور نگهداری کنید.</li>
+        </ul>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; Error Handling" data-title-fa="امنیت و مدیریت خطا"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Authentication & Authorization Posture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">وضعیت احراز هویت و مجوز</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-8 en-text"><strong class="text-ink">As implemented, the application has no authentication or authorization layer.</strong> Both <code class="text-xs">/</code> and <code class="text-xs">/modir</code> — including every mutating POST endpoint — are reachable by any client with network access to the deployed URL. This is an accurate, load-bearing statement about the current codebase, not a hypothetical risk.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;"><strong class="text-ink">در پیاده‌سازی فعلی، اپلیکیشن هیچ لایه احراز هویت یا مجوزی ندارد.</strong> هم <code class="text-xs">/</code> و هم <code class="text-xs">/modir</code> — از جمله همه اندپوینت‌های POST تغییردهنده — برای هر کلاینتی با دسترسی شبکه به URL مستقر قابل دسترسی هستند. این یک بیان دقیق و واقعی درباره کدبیس فعلی است، نه یک ریسک فرضی.</p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Priority</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Recommendation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توصیه</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">P0</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Place /modir and its POST sub-routes behind authentication (Basic Auth via reverse proxy or Flask session auth)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">قراردادن /modir و زیرمسیرهای POST آن پشت احراز هویت (Basic Auth یا Flask session auth)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">P0</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Restrict or authenticate /api/* and order-creation endpoints if the order page is not meant to be fully public</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدود یا احراز هویت‌دار کردن /api/* و اندپوینت‌های ایجاد سفارش در صورت غیرعمومی بودن صفحه سفارش</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">P1</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Set a strong, environment-sourced SECRET_KEY before adopting Flask sessions</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تنظیم SECRET_KEY قوی از طریق env قبل از استفاده از Flask sessions</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">P1</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Rate-limit /orders, /custom-orders, /issue-invoice (e.g. Flask-Limiter)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعمال rate-limit روی /orders، /custom-orders، /issue-invoice (مثلاً Flask-Limiter)</span></td></tr>
+              <tr><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">P2</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Add HTTPS enforcement / HSTS at the proxy layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">افزودن اجبار HTTPS / HSTS در لایه پروکسی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Input Validation & Error Handling</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعتبارسنجی ورودی و مدیریت خطا</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Failure Mode</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">حالت خطا</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Current Handling</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رفتار فعلی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80"><span class="en-text">Invalid/missing order data</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">داده سفارش نامعتبر/ناقص</span></td><td class="px-4 py-3 font-mono text-xs text-rust">400 — no_items · customer · name</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80"><span class="en-text">Order/invoice not found</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سفارش/فاکتور یافت نشد</span></td><td class="px-4 py-3 font-mono text-xs text-rust">404 — not_found</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80"><span class="en-text">Playwright rendering failure</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خطای رندر Playwright</span></td><td class="px-4 py-3 font-mono text-xs text-rust">500 — roadmap_pdf</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80"><span class="en-text">Other PDF generation exception</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سایر خطاهای تولید PDF</span></td><td class="px-4 py-3 font-mono text-xs text-rust">500 — pdf_failed</td></tr>
+              <tr><td class="px-4 py-3 text-ink/80"><span class="en-text">Malformed JSON body</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدنه JSON نامعتبر</span></td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Defaults to {} via get_json(silent=True)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیش‌فرض {} از طریق get_json(silent=True)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — Team Projects Management — Baltazar Team · © 2026 All rights reserved.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — Team Projects Management — تیم بالتازار · © ۱۴۰۵ تمامی حقوق محفوظ است.</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۲ — مستندات Team Projects Management';
+      if (tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 02 — Team Projects Management Documentation';
+      if (tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',            titleFa: 'صفحه جلد',            icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',        titleFa: 'معرفی سیستم',          icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',  titleFa: 'معماری و طراحی',       icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database & Modeling',    titleFa: 'طرح داده‌ها',          icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API / Interface',        titleFa: 'مرجع API',             icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',          titleFa: 'پیکربندی',             icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',    titleFa: 'استقرار و DevOps',      icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & Errors',      titleFa: 'امنیت و خطاها',        icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema (Section 003)
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'categories.json (Category)', fields: [
+      ['id', 'string (UUID)', 'Required, primary key', 'Unique identifier'],
+      ['name', 'string', 'Required, non-empty (trimmed)', 'Category display name'],
+      ['kind', 'string enum', 'parent | child — defaults to parent', 'Hierarchy level'],
+      ['parent_id', 'string (UUID) | null', 'Required when kind = child', 'Parent category reference'],
+    ]},
+    { table: 'services.json (Service)', fields: [
+      ['id', 'string (UUID)', 'Required, primary key', 'Unique identifier'],
+      ['name', 'string', 'Required', 'Service display name'],
+      ['category_ids', 'array<string>', 'May be empty', 'Owning category/categories'],
+      ['price', 'string', 'Parsed via parse_price_amount()', 'Free-text price (digits extracted, Persian numerals supported)'],
+      ['terms', 'array<string>', 'Optional', 'Contract terms shown on invoices'],
+      ['extra_note', 'string', 'Optional', 'Supplementary note'],
+    ]},
+    { table: 'plans.json (Plan)', fields: [
+      ['id', 'string (UUID)', 'Required, primary key', 'Unique identifier'],
+      ['name', 'string', 'Required', 'Plan display name'],
+      ['category_ids', 'array<string>', 'May be empty', 'Categories auto-expanded into services'],
+      ['service_ids', 'array<string>', 'May be empty', 'Explicitly included services'],
+      ['price', 'string', 'Parsed via parse_price_amount()', 'Free-text bundle price'],
+      ['terms', 'array<string>', 'Optional', 'Contract terms'],
+    ]},
+    { table: 'customers.json (Customer)', fields: [
+      ['id', 'string (UUID)', 'Required, primary key', 'Unique identifier'],
+      ['name', 'string', 'Required, non-empty', 'Customer full name'],
+      ['phone', 'string', 'Optional', 'Contact phone number'],
+      ['address', 'string', 'Optional', 'Postal / billing address'],
+    ]},
+    { table: 'orders.json (Standard Order)', fields: [
+      ['id', 'string (UUID)', 'Required, primary key', 'Unique identifier'],
+      ['created_at', 'string (ISO 8601)', 'Required', 'Server-generated timestamp'],
+      ['customer_id', 'string (UUID)', 'Required, FK', 'Reference to customers.id'],
+      ['customer', 'object', 'Required', 'Denormalized snapshot {name, phone, address}'],
+      ['plan_ids / service_ids', 'array<string>', 'At least one required', 'Selected plan/service IDs'],
+      ['services_detail', 'array<object>', 'Snapshot at order time', 'id, name, price, description, terms'],
+      ['total_price', 'number', 'Computed server-side', 'Sum of resolved item prices'],
+      ['invoice_type', 'string enum', 'Normalized server-side', 'current (covers simple submissions too)'],
+    ]},
+    { table: 'custom-order.json (Custom Order)', fields: [
+      ['id', 'string (UUID)', 'Required, primary key', 'Unique identifier'],
+      ['customer_id / customer', 'string / object', 'Required', 'FK + denormalized snapshot'],
+      ['invoice_type', 'string enum', 'roadmap | simple | panel', 'Normalized via normalize_invoice_type()'],
+      ['steps', 'array<object>', 'When invoice_type = roadmap', 'Ordered stage objects with label/price'],
+      ['simple_lines', 'array<object>', 'When invoice_type = simple', 'Row items with quantity & unit price'],
+      ['panel_plans', 'array<object>', 'When invoice_type = panel', 'Tier ∈ {economic, bronze, silver, gold, diamond, exclusive}'],
+      ['total_price', 'number', 'Computed server-side', 'Aggregate total'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion (Section 007)
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'POST /issue-invoice returns {"error": "roadmap_pdf"} — what\'s wrong?',
+      qFa: 'POST /issue-invoice خطای {"error": "roadmap_pdf"} می‌دهد — مشکل چیست؟',
+      aEn: 'This indicates the Playwright Chromium browser failed to launch or render. Confirm "playwright install chromium" ran in the deployment environment (already satisfied by the provided Dockerfile). Check container memory limits — headless Chromium needs a reasonable ceiling.',
+      aFa: 'یعنی مرورگر Chromium متعلق به Playwright راه‌اندازی یا رندر نشده است. اطمینان حاصل کنید "playwright install chromium" در محیط استقرار اجرا شده (در Dockerfile ارائه‌شده از قبل انجام شده). محدودیت حافظه کانتینر را بررسی کنید — Chromium headless به سقف معقولی نیاز دارد.',
+    },
+    {
+      qEn: 'An invoice PDF downloads as 404 from /receipts/<file>.',
+      qFa: 'دانلود فاکتور PDF از /receipts/<file> با خطای 404 مواجه می‌شود.',
+      aEn: 'The reciept/ directory is either not persisted (ephemeral container filesystem) or the filename was altered/guessed rather than taken from a prior /issue-invoice response. Filenames are UUID-based and not guessable.',
+      aFa: 'پوشه reciept/ یا پایدار نشده (فایل‌سیستم موقتی کانتینر) یا نام فایل تغییر یافته/حدس زده شده به‌جای گرفتن از پاسخ /issue-invoice قبلی. نام فایل‌ها UUID-محور و غیرقابل‌حدس هستند.',
+    },
+    {
+      qEn: 'Prices display as 0 or incorrect on an invoice.',
+      qFa: 'قیمت‌ها روی فاکتور صفر یا اشتباه نمایش داده می‌شوند.',
+      aEn: 'parse_price_amount() extracts only digit characters from the stored price string. A purely descriptive price (e.g. "توافقی" — negotiable) correctly parses to 0 — expected for the exclusive panel tier, not a bug.',
+      aFa: 'تابع parse_price_amount() فقط کاراکترهای عددی را از رشته قیمت استخراج می‌کند. قیمت کاملاً توصیفی (مثلاً "توافقی") به‌درستی به ۰ تبدیل می‌شود — این برای سطح exclusive انتظار می‌رود، نه یک باگ.',
+    },
+    {
+      qEn: 'Persian text renders reversed or with disconnected letters in the "current" invoice.',
+      qFa: 'متن فارسی در فاکتور "current" برعکس یا با حروف جدا نمایش داده می‌شود.',
+      aEn: 'This is the exact failure mode arabic-reshaper (glyph shaping) and python-bidi (visual ordering) are installed to prevent. Confirm both packages are present and the Dana font loads successfully in ReportLab.',
+      aFa: 'این دقیقاً همان خطایی است که arabic-reshaper (شکل‌دهی حروف) و python-bidi (ترتیب‌بندی نمایشی) برای جلوگیری از آن نصب شده‌اند. اطمینان حاصل کنید هر دو پکیج نصب هستند و فونت دانا در ReportLab به‌درستی بارگذاری می‌شود.',
+    },
+    {
+      qEn: 'Admin catalog changes aren\'t reflected on the order page.',
+      qFa: 'تغییرات کاتالوگ مدیر در صفحه سفارش منعکس نمی‌شود.',
+      aEn: 'The catalog is re-read from disk on every request — there is no in-memory caching layer. If it recurs, verify all Gunicorn workers read from the same mounted Database/ volume.',
+      aFa: 'کاتالوگ در هر درخواست دوباره از دیسک خوانده می‌شود — هیچ لایه کش حافظه‌ای وجود ندارد. در صورت تکرار، بررسی کنید همه worker‌های Gunicorn از یک volume مشترک Database/ می‌خوانند.',
+    },
+    {
+      qEn: 'Can two admins edit the catalog at the same time safely?',
+      qFa: 'آیا دو مدیر می‌توانند هم‌زمان و به‌صورت ایمن کاتالوگ را ویرایش کنند؟',
+      aEn: 'Not guaranteed. The JSON file store performs a full read-modify-write on every mutation with no locking. Until file locking or a database migration is introduced, treat single-writer-at-a-time as an operational assumption.',
+      aFa: 'تضمین نشده است. ذخیره‌ساز JSON در هر تغییر یک خواندن-تغییر-نوشتن کامل بدون قفل انجام می‌دهد. تا زمان معرفی file locking یا مهاجرت به پایگاه‌داده، یک‌نویسنده‌در‌هر‌لحظه را یک فرض عملیاتی در نظر بگیرید.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL (supports ?lang=fa and ?lang=en)
+  // ---------------------------------------------------------------
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>
