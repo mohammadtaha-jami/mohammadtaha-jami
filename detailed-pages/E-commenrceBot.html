@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — Telegram E-Commerce Bot</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the portfolio green */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 02 — Telegram E-Commerce Bot Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Ready Specification</span>
+              <span class="fa-text hidden">مستندات فنی سطح تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: TG-WOO-BOT-2026-100</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight">
+              <span class="relative inline-block">
+                <span class="relative z-10">T</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v1</span>
+              </span>ELEGRAM E-COMMERCE BOT
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">Telegram WooCommerce Sync Bot</span> — a production-grade storefront system that bridges a WooCommerce store with a Telegram bot interface via real-time, two-stage catalog synchronization.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">ربات تلگرامی همگام با ووکامرس</span> — یک سیستم فروشگاهی سطح تولید که فروشگاه ووکامرس را از طریق همگام‌سازی دو مرحله‌ای و بلادرنگ کاتالوگ، به رابط ربات تلگرام متصل می‌کند.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <a href="#" onclick="return false;"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-brands fa-github"></i>
+              <span class="en-text">Repository</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مخزن کد</span>
+              <span class="font-mono text-xs opacity-70 hidden sm:inline">telegram-woo-bot</span>
+            </a>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v1.0.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production-Ready</span></span>
+            <span>LICENSE <span class="text-paper font-semibold">MIT</span></span>
+            <span>DEV <span class="text-paper font-semibold">MohammadTaha Hosseinzadeh</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          The <strong class="text-ink">Telegram E-Commerce Bot</strong> is a production-grade storefront system that bridges a <strong class="text-ink">WooCommerce</strong> online store with a <strong class="text-ink">Telegram</strong> bot interface. It eliminates the dual-maintenance problem of keeping product data synchronized between a web store and a chat-based storefront by establishing WooCommerce as the <strong class="text-ink">single source of truth</strong>. The system pulls categories and products from the WooCommerce REST API, persists them into a local SQLite database, and serves them to end-users through a fully asynchronous Telegram bot with paginated inline keyboards. A Flask admin panel provides operational control — starting/stopping the bot, toggling a Telegram proxy, triggering on-demand catalog syncs, and inspecting the synced catalog via a JSON API and browser UI.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          <strong class="text-ink">ربات فروشگاهی تلگرام (Telegram E-Commerce Bot)</strong> یک سیستم فروشگاهی سطح تولید است که فروشگاه آنلاین <strong class="text-ink">ووکامرس</strong> را به رابط ربات <strong class="text-ink">تلگرام</strong> متصل می‌کند. این سیستم با تعیین ووکامرس به عنوان <strong class="text-ink">منبع واحد حقیقت</strong>، مشکل نگهداری دوگانه داده محصولات میان فروشگاه وب و فروشگاه چت‌محور را از بین می‌برد. سیستم دسته‌بندی‌ها و محصولات را از REST API ووکامرس دریافت کرده، در یک پایگاه‌داده محلی SQLite ذخیره می‌کند و از طریق یک ربات تلگرام کاملاً ناهمزمان با کیبوردهای صفحه‌بندی‌شده به کاربران نمایش می‌دهد. یک پنل مدیریت Flask کنترل عملیاتی کامل فراهم می‌کند — روشن/خاموش کردن ربات، فعال/غیرفعال‌سازی پروکسی تلگرام، اجرای همگام‌سازی دستی کاتالوگ و بازبینی کاتالوگ همگام‌شده از طریق API و رابط مرورگر.
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Sync Stages</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مراحل همگام‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">2</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Persistence</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">SQLite</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Deploy Modes</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">حالت‌های استقرار</p>
+            <p class="font-display text-2xl mt-1 text-rust">Poll / Hook</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">License</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مجوز</p>
+            <p class="font-display text-2xl mt-1 text-rust">MIT</p>
+          </div>
+        </div>
+
+        <!-- Scope -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">In Scope</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدوده پروژه</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text">Two-stage WooCommerce catalog synchronization (categories → products).</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">همگام‌سازی دو مرحله‌ای کاتالوگ ووکامرس (دسته‌بندی‌ها ← محصولات).</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text">Telegram bot with inline keyboard catalog browsing and pagination.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">ربات تلگرام با مرور کاتالوگ و صفحه‌بندی از طریق کیبورد درون‌خطی.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text">Flask admin panel with REST API endpoints.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">پنل مدیریت Flask همراه با endpointهای REST API.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text">Local SQLite persistence with upsert semantics.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی محلی SQLite با معنای upsert.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">05</span><span class="text-ink/75 text-sm leading-relaxed en-text">Polling and webhook deployment modes; runtime proxy toggling.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">حالت‌های استقرار polling و webhook؛ فعال/غیرفعال‌سازی پروکسی در زمان اجرا.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">06</span><span class="text-ink/75 text-sm leading-relaxed en-text">Thread-safe bot lifecycle management.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت چرخه حیات ربات با ایمنی نخ (thread-safe).</span></li>
+        </ol>
+
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink en-text">Out of Scope</h3>
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Order processing / checkout within Telegram, customer payment integration, multi-tenant / multi-store support, user authentication for the admin panel (single-operator deployment), and horizontal scaling of the bot (single-instance design).</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">پردازش سفارش / تسویه‌حساب داخل تلگرام، اتصال درگاه پرداخت مشتری، پشتیبانی چند‌مستأجری / چند‌فروشگاهی، احراز هویت کاربر برای پنل مدیریت (استقرار تک‌اپراتوره) و مقیاس‌پذیری افقی ربات (طراحی تک‌نمونه‌ای).</p>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذی‌نفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذی‌نفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Requirements</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نیازمندی‌ها</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Store Owner</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Operates the WooCommerce store</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اداره‌کننده فروشگاه ووکامرس</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Zero-code catalog updates; single source of truth</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">به‌روزرسانی کاتالوگ بدون کد؛ منبع واحد حقیقت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">End Customer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Browses products via Telegram</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرور محصولات از طریق تلگرام</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fast, RTL-safe, paginated product browsing</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرور سریع، سازگار با RTL و صفحه‌بندی‌شده</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">System Administrator</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Deploys and maintains the system</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استقرار و نگهداری سیستم</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Simple deployment; clear operational controls</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استقرار ساده؛ کنترل‌های عملیاتی شفاف</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Developer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Extends and maintains the codebase</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توسعه و نگهداری کدبیس</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Clean modular architecture; documented interfaces</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری ماژولار تمیز؛ رابط‌های مستندشده</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Objective</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Success Metric</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معیار موفقیت</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Single Source of Truth</td><td class="px-4 py-3 text-ink/70"><span class="en-text">WooCommerce is the only place product data is edited</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ووکامرس تنها محل ویرایش داده محصول است</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">No manual data entry in the bot</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون ورود دستی داده در ربات</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Real-Time Sync</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Catalog reflects WooCommerce changes on demand</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاتالوگ تغییرات ووکامرس را بر حسب تقاضا منعکس می‌کند</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">/sync or admin-triggered sync updates all records</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">/sync یا سینک ادمین همه رکوردها را به‌روز می‌کند</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Responsive Bot</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fully async bot remains responsive under load</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ربات کاملاً ناهمزمان تحت بار پاسخگو می‌ماند</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Async I/O throughout; no blocking calls</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">I/O ناهمزمان در کل؛ بدون فراخوانی مسدودکننده</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Operational Control</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Admin can manage bot lifecycle without SSH</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ادمین می‌تواند چرخه حیات ربات را بدون SSH مدیریت کند</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Start/stop/proxy/sync via web panel</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شروع/توقف/پروکسی/سینک از طریق پنل وب</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Graceful Shutdown</td><td class="px-4 py-3 text-ink/70"><span class="en-text">No orphaned threads or corrupted DB on stop</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون نخ‌های یتیم یا پایگاه‌داده خراب هنگام توقف</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">run_coroutine_threadsafe + event-loop cleanup</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">run_coroutine_threadsafe + پاک‌سازی event-loop</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Idempotent Sync</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Re-syncing never creates duplicates</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سینک مجدد هرگز داده تکراری ایجاد نمی‌کند</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Upsert semantics on both tables</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معنای upsert در هر دو جدول</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tech stack -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Tech Stack</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری‌ها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Technology</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Bot Runtime</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">python-telegram-bot &gt;=20,&lt;22</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Async Telegram Bot API wrapper</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رَپر ناهمزمان Telegram Bot API</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Admin Panel</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Flask &gt;=3.0.0</td><td class="px-4 py-3 text-ink/60"><span class="en-text">REST API + browser UI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">REST API و رابط مرورگر</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Persistence</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">aiosqlite &gt;=0.19.0</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Async SQLite driver</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">درایور ناهمزمان SQLite</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">HTTP Client</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">httpx[http2] &gt;=0.27.0</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Async HTTP/2, WooCommerce REST client</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">HTTP/2 ناهمزمان، کلاینت REST ووکامرس</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Config</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">python-dotenv &gt;=1.0.0</td><td class="px-4 py-3 text-ink/60"><span class="en-text">.env file loading</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بارگذاری فایل .env</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          The system follows a <span class="text-ink font-medium">modular monolith</span> architecture with three primary runtime components: the <strong>Flask Admin Panel</strong> (main process, HTTP server, REST API, and bot lifecycle manager), the <strong>Telegram Bot</strong> (runs in a dedicated daemon thread with its own asyncio event loop), and the <strong>WooCommerce Sync Engine</strong> (an async HTTP client that pulls catalog data).
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          سیستم از معماری <span class="text-ink font-medium">مونولیت ماژولار</span> با سه مؤلفه اصلی زمان اجرا پیروی می‌کند: <strong>پنل مدیریت Flask</strong> (فرآیند اصلی، سرور HTTP، REST API و مدیریت چرخه حیات ربات)، <strong>ربات تلگرام</strong> (در یک نخ daemon اختصاصی با event loop مجزای asyncio اجرا می‌شود) و <strong>موتور همگام‌سازی ووکامرس</strong> (کلاینت HTTP ناهمزمانی که داده کاتالوگ را دریافت می‌کند).
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+    subgraph External["External Systems"]
+        WC["WooCommerce Store<br/>REST API v3"]
+        TG["Telegram Servers<br/>Bot API"]
+        CUST["End Customers<br/>Telegram Users"]
+    end
+
+    subgraph App["Application Python 3.13"]
+        subgraph Flask["Flask Admin Panel Main Thread"]
+            UI["Admin UI templates/index.html"]
+            API["REST API /api/* endpoints"]
+            SM["SyncManager background thread"]
+        end
+
+        subgraph BotThread["Telegram Bot Thread daemon"]
+            LOOP["Dedicated asyncio Event Loop"]
+            APP["PTB Application"]
+            HANDLERS["Handlers /start /sync callbacks"]
+        end
+
+        DB[("SQLite products.db aiosqlite")]
+        CFG["config.py env-driven"]
+    end
+
+    WC -->|"HTTPS BasicAuth"| SM
+    SM -->|"Upsert categories/products"| DB
+    CUST -->|"Messages Callbacks"| TG
+    TG -->|"Long Polling / Webhook"| APP
+    APP --> HANDLERS
+    HANDLERS -->|"Async reads"| DB
+    UI --> API
+    API -->|"start/stop/proxy/sync"| APP
+    API -->|"start sync"| SM
+    API -->|"Read catalog"| DB
+    CFG -.->|"Configures all"| Flask
+    CFG -.->|"Configures all"| BotThread
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Threading &amp; Concurrency Model</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدل نخ و همزمانی</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    participant Flask as Flask Main Thread
+    participant SM as SyncManager Thread
+    participant BT as Bot Thread
+    participant Loop as Bot Event Loop
+    participant DB as SQLite aiosqlite
+
+    Flask->>BT: start spawn daemon thread
+    BT->>Loop: asyncio new_event_loop
+    Loop->>Loop: main_loop app stop_event
+    Loop->>DB: init_db
+    Loop->>Loop: start_polling / start
+    Loop-->>Flask: ready_event set
+
+    Flask->>SM: start_sync spawn thread
+    SM->>SM: asyncio run run_sync
+    SM->>DB: init_db
+    SM->>DB: upsert_category xN
+    SM->>DB: upsert_product xN
+    SM-->>Flask: status_dict thread-safe via lock
+
+    Flask->>BT: stop run_coroutine_threadsafe
+    Loop->>Loop: stop_event set
+    Loop->>Loop: graceful shutdown
+    BT-->>Flask: thread join timeout 20
+          </pre>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Principle</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اصل</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Implementation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیاده‌سازی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Isolated Event Loops</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Bot thread has its own asyncio loop; Flask never blocks on it</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نخ ربات loop مجزای asyncio دارد؛ Flask هرگز روی آن مسدود نمی‌شود</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Thread-Safe State</td><td class="px-4 py-3 text-ink/70"><span class="en-text">All shared state guarded by threading.Lock</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام state مشترک با threading.Lock محافظت می‌شود</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Cross-Thread Calls</td><td class="px-4 py-3 text-ink/70"><span class="en-text">asyncio.run_coroutine_threadsafe() for Flask → bot-loop</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">asyncio.run_coroutine_threadsafe() برای ارتباط Flask ← bot-loop</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Async DB Access</td><td class="px-4 py-3 text-ink/70"><span class="en-text">aiosqlite — no blocking SQLite calls in the event loop</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">aiosqlite — بدون فراخوانی مسدودکننده SQLite در event loop</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Daemon Threads</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Both bot and sync threads are daemons; process exits cleanly</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نخ‌های ربات و سینک هر دو daemon هستند؛ خروج تمیز فرآیند</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Ready Synchronization</td><td class="px-4 py-3 text-ink/70"><span class="en-text">threading.Event (_ready_event) with 30s timeout</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">threading.Event (_ready_event) با timeout ۳۰ ثانیه</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Data Flow</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جریان داده</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart LR
+    subgraph SyncFlow["Sync Data Flow"]
+        A["GET wc/v3/products/categories"] -->|"Page 1..N 100/page"| B["Parse and Normalize"]
+        B --> C["Upsert into categories table"]
+        C --> D["Read category IDs from DB"]
+        D --> E["GET wc/v3/products by category"]
+        E -->|"Page 1..N 100/page"| F["Parse Normalize strip HTML"]
+        F --> G["Upsert into products table"]
+    end
+
+    subgraph BotFlow["Bot Data Flow"]
+        H["/start command"] --> I["fetch_all_categories"]
+        I --> J["Inline keyboard 2 per row"]
+        J --> K["Callback cat_id_page"]
+        K --> L["fetch_products_from_db LIMIT OFFSET"]
+        L --> M["HTML message plus pagination keyboard"]
+    end
+
+    subgraph AdminFlow["Admin Data Flow"]
+        N["POST /api/sync"] --> O["SyncManager.start_sync"]
+        O --> A
+        P["GET /get-db-products"] --> Q["fetch categories and products grouped"]
+        Q --> R["Grouped JSON response"]
+    end
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory / Folder Structure</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار پوشه‌ها</h3>
+        <div class="relative">
+          <button onclick="copyBlock('ascii-tree', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="ascii-tree">Bot-teleggram/
+│
+├── main.py                    # Flask entry point + SyncManager + REST API routes
+├── config.py                  # Central configuration (env-driven)
+├── database.py                # Async SQLite operations (aiosqlite)
+├── handlers.py                # Telegram bot handlers & inline keyboards
+├── telegram_bot.py            # TelegramBotManager (thread lifecycle)
+├── woocommerce_sync.py        # Two-stage WooCommerce sync engine
+├── requirements.txt           # Python dependencies
+├── .env.example                # Environment template (git-ignored .env)
+├── .gitignore
+├── README.md
+├── LICENSE
+│
+├── templates/
+│   └── index.html             # Flask admin panel UI (single page)
+│
+├── bot/                        # (Optional) virtual environment directory
+│   └── ...                    # venv artifacts (git-ignored)
+│
+└── products.db                 # SQLite database (generated at runtime)</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Module Responsibilities</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت ماژول‌ها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Module</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماژول</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Key Exports</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خروجی‌های کلیدی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">main.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Flask app, REST API, SyncManager, app bootstrap</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اپ Flask، REST API، SyncManager، bootstrap</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">app, sync_manager</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">config.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Load .env, expose typed configuration constants</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بارگذاری .env، ثابت‌های پیکربندی</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">SITE_URL, BOT_TOKEN, RUN_MODE</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">database.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">All async SQLite CRUD operations</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام عملیات CRUD ناهمزمان SQLite</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">init_db, upsert_category, upsert_product, fetch_*</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">handlers.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Telegram command/callback handlers, keyboards, formatting</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هندلرهای دستور/کالبک، کیبورد، قالب‌بندی پیام</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">start_command, sync_command, category_callback, error_handler</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">telegram_bot.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Bot lifecycle management in dedicated thread</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت چرخه حیات ربات در نخ اختصاصی</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">TelegramBotManager, bot_manager</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">woocommerce_sync.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">WooCommerce REST API client and sync orchestration</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلاینت REST ووکامرس و هماهنگی سینک</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">sync_all_from_woocommerce</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 003 DATABASE SCHEMA ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database Schema" data-title-fa="طرح داده‌ها"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">
+          The system persists two tables in a local SQLite database (<code class="text-xs">products.db</code>, accessed via <code class="text-xs">aiosqlite</code>): <code class="text-xs">categories</code> and <code class="text-xs">products</code>, connected by a one-to-many relationship. Both tables use <strong class="text-ink">upsert semantics</strong> so repeated syncs never create duplicates.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          سیستم دو جدول را در یک پایگاه‌داده محلی SQLite (<code class="text-xs">products.db</code>، از طریق <code class="text-xs">aiosqlite</code>) ذخیره می‌کند: <code class="text-xs">categories</code> و <code class="text-xs">products</code> که با رابطه یک‌به‌چند به هم متصل‌اند. هر دو جدول از <strong class="text-ink">معنای upsert</strong> استفاده می‌کنند تا سینک‌های تکراری هرگز داده تکراری ایجاد نکنند.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Entity-Relationship Overview</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">دیاگرام روابط موجودیت‌ها</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+erDiagram
+    CATEGORIES ||--o{ PRODUCTS : contains
+
+    CATEGORIES {
+        INTEGER id PK
+        TEXT name
+        TEXT slug UK
+    }
+
+    PRODUCTS {
+        INTEGER id PK
+        INTEGER category_id FK
+        TEXT name
+        TEXT description
+        TEXT price
+        TEXT permalink
+        TEXT image_url
+    }
+          </pre>
+        </div>
+
+        <div id="db-filters" class="flex flex-wrap gap-2 mb-5"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Field</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فیلد</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت‌ها</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2"></tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Upsert Strategy</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">استراتژی Upsert</h3>
+        <div class="relative">
+          <button onclick="copyBlock('upsert-sql', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="upsert-sql">-- Categories
+INSERT INTO categories (id, name, slug)
+VALUES (?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    slug = excluded.slug;
+
+-- Products
+INSERT INTO products (id, category_id, name, description, price, permalink, image_url)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    category_id = excluded.category_id,
+    name        = excluded.name,
+    description = excluded.description,
+    price       = excluded.price,
+    permalink   = excluded.permalink,
+    image_url   = excluded.image_url;</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Sync Pipeline</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایپ‌لاین سینک</h3>
+        <ol class="space-y-3 max-w-2xl mb-8">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">S1</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Categories</span> — paginate GET /wp-json/wc/v3/products/categories?per_page=100&amp;page=N until an empty page. Upsert each category.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">دسته‌بندی‌ها</span> — صفحه‌بندی GET /wp-json/wc/v3/products/categories تا رسیدن به صفحه خالی. سپس upsert هر دسته.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">S2</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Products</span> — read all category IDs from the local table; for each, paginate GET /wp-json/wc/v3/products?category={id}. Upsert each product.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">محصولات</span> — خواندن شناسه همه دسته‌ها از جدول محلی؛ برای هرکدام صفحه‌بندی GET /wp-json/wc/v3/products?category={id}. سپس upsert هر محصول.</span></li>
+        </ol>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Pagination Query (bot browsing)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کوئری صفحه‌بندی (مرور در ربات)</h3>
+        <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed mb-8"><code>SELECT id, category_id, name, description, price, permalink, image_url
+FROM products
+WHERE category_id = ?
+ORDER BY id ASC
+LIMIT ? OFFSET ?;
+-- offset = (page - 1) * per_page</code></pre>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Orphan Handling</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت محصولات یتیم</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Products whose <code class="text-xs">category_id</code> no longer exists in <code class="text-xs">categories</code> are surfaced in the admin API under a synthetic "deleted category" group.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">محصولاتی که <code class="text-xs">category_id</code> آن‌ها دیگر در <code class="text-xs">categories</code> وجود ندارد، در API ادمین تحت یک گروه مصنوعی «دسته حذف‌شده» نمایش داده می‌شوند.</p>
+      </div>
+
+      <!-- ========== 004 API REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API و رابط‌ها"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          The Flask admin panel exposes a small REST API with no authentication (single-operator deployment). The Telegram bot exposes commands and callback-data patterns for catalog browsing.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          پنل مدیریت Flask یک REST API کوچک بدون احراز هویت (استقرار تک‌اپراتوره) ارائه می‌دهد. ربات تلگرام نیز دستورات و الگوهای callback-data برای مرور کاتالوگ را نمایش می‌دهد.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Flask REST API</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">REST API فلسک</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[620px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Endpoint</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responses</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پاسخ‌ها</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Serves the admin panel HTML page</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صفحه HTML پنل مدیریت</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/status</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Real-time status of bot, proxy and sync manager</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">وضعیت بلادرنگ ربات، پروکسی و مدیر سینک</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/bot/start</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Starts the Telegram bot in a daemon thread</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌اندازی ربات در نخ daemon</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200 / 400 / 500</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/bot/stop</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Gracefully stops the bot via run_coroutine_threadsafe</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توقف امن ربات از طریق run_coroutine_threadsafe</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200 / 400 / 500</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/proxy</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Toggles the Telegram proxy; auto-restarts the bot if running</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فعال/غیرفعال‌سازی پروکسی؛ ری‌استارت خودکار ربات در صورت اجرا</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200 / 400 / 500</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/sync</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Starts a two-stage WooCommerce sync in a background thread</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شروع سینک دو مرحله‌ای ووکامرس در نخ پس‌زمینه</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200 / 409 / 500</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/get-db-products</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Full synced catalog grouped by category, incl. orphans</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاتالوگ کامل گروه‌بندی‌شده بر اساس دسته، شامل یتیم‌ها</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">200 / 500</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="space-y-10">
+          <div>
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-amber/15 text-amber border border-amber/30 rounded-md px-2.5 py-1">JSON</span>
+              <code class="font-mono text-sm text-ink">GET /api/status</code>
+            </div>
+            <div class="relative mb-4">
+              <button onclick="copyBlock('status-json', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="status-json">{
+  "bot_running": true,
+  "proxy_enabled": false,
+  "bot_last_error": null,
+  "sync": {
+    "in_progress": false,
+    "last_categories": 12,
+    "last_products": 340,
+    "last_error_count": 0,
+    "last_message": "sync ok: 12 categories, 340 products",
+    "last_errors": []
+  }
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-sage/15 text-sage border border-sage/30 rounded-md px-2.5 py-1">JSON</span>
+              <code class="font-mono text-sm text-ink">GET /get-db-products</code>
+            </div>
+            <div class="relative">
+              <button onclick="copyBlock('catalog-json', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="catalog-json">{
+  "ok": true,
+  "total": 340,
+  "category_count": 12,
+  "categories": [
+    {
+      "category_id": 15,
+      "category_name": "Electronics",
+      "slug": "electronics",
+      "count": 28,
+      "products": [
+        {
+          "id": 1024,
+          "category_id": 15,
+          "name": "Wireless Headphone Model X",
+          "description": "Wireless headphone with active noise cancelling...",
+          "price": "2450000",
+          "permalink": "https://store.example.com/product/headphone-x",
+          "image_url": "https://store.example.com/wp-content/uploads/headphone.jpg"
+        }
+      ]
+    }
+  ]
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <h3 class="font-display text-lg mb-4 text-ink en-text">Telegram Bot Interface</h3>
+            <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط ربات تلگرام</h3>
+            <div class="overflow-x-auto rounded-xl border border-ink/10">
+              <table class="w-full text-left border-collapse min-w-[560px]">
+                <thead><tr class="bg-charcoal text-paper">
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Trigger</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Behavior</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رفتار</span></th>
+                </tr></thead>
+                <tbody class="bg-charcoal2 text-sm">
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">/start</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fetches categories; shows welcome message + category keyboard (2/row)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دریافت دسته‌ها؛ نمایش پیام خوش‌آمد + کیبورد دسته‌بندی (۲ در هر ردیف)</span></td></tr>
+                  <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">/sync</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Runs full two-stage sync inline; edits status message with the result</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اجرای سینک دو مرحله‌ای؛ ویرایش پیام وضعیت با نتیجه</span></td></tr>
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">cat_{id} / cat_{id}_{page}</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fetches products with LIMIT/OFFSET pagination + product keyboard</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دریافت محصولات با صفحه‌بندی LIMIT/OFFSET + کیبورد محصول</span></td></tr>
+                  <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">noop</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Page indicator button — no-op, acknowledges the callback</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دکمه نشانگر صفحه — بدون عملیات</span></td></tr>
+                  <tr><td class="px-4 py-3 font-mono text-rust">back</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Re-renders the category menu</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بازسازی منوی دسته‌بندی</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="text-ink/60 text-sm mt-3 en-text">Callback data protocol: <code class="text-xs">cat_42</code> (page 1), <code class="text-xs">cat_42_3</code> (page 3). Telegram limits <code class="text-xs">callback_data</code> to 64 bytes — the protocol uses only numeric IDs and ASCII.</p>
+            <p class="text-ink/60 text-sm mt-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">پروتکل callback data: <code class="text-xs">cat_42</code> (صفحه ۱)، <code class="text-xs">cat_42_3</code> (صفحه ۳). محدودیت تلگرام برای <code class="text-xs">callback_data</code> ۶۴ بایت است — پروتکل فقط از شناسه عددی و ASCII استفاده می‌کند.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی و محیط"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          All configuration is loaded from <code class="text-xs">.env</code> via <code class="text-xs">python-dotenv</code> in <code class="text-xs">config.py</code>.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          تمام پیکربندی از طریق <code class="text-xs">.env</code> با استفاده از <code class="text-xs">python-dotenv</code> در <code class="text-xs">config.py</code> بارگذاری می‌شود.
+        </p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[620px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Default</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Required</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">الزامی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">SITE_URL</td><td class="px-4 py-3 font-mono text-xs text-ink/60">https://example.com</td><td class="px-4 py-3 text-ink/70">✅</td><td class="px-4 py-3 text-ink/70"><span class="en-text">WooCommerce store base URL</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آدرس پایه فروشگاه ووکامرس</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">ADMIN_USER_NAME</td><td class="px-4 py-3 font-mono text-xs text-ink/60">—</td><td class="px-4 py-3 text-ink/70">✅</td><td class="px-4 py-3 text-ink/70"><span class="en-text">WordPress username for Application Password auth</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نام کاربری وردپرس برای احراز هویت Application Password</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">ADMIN_PASSWORD</td><td class="px-4 py-3 font-mono text-xs text-ink/60">—</td><td class="px-4 py-3 text-ink/70">✅</td><td class="px-4 py-3 text-ink/70"><span class="en-text">WordPress Application Password</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Application Password وردپرس</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Tocken_Telegram_Bot</td><td class="px-4 py-3 font-mono text-xs text-ink/60">—</td><td class="px-4 py-3 text-ink/70">✅</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Telegram bot token from @BotFather (legacy name)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن ربات تلگرام از @BotFather (نام قدیمی)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">BOT_TOKEN</td><td class="px-4 py-3 font-mono text-xs text-ink/60">—</td><td class="px-4 py-3 text-ink/70">⚠️</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Alternative env var for bot token</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">متغیر جایگزین برای توکن ربات</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">RUN_MODE</td><td class="px-4 py-3 font-mono text-xs text-ink/60">POLLING</td><td class="px-4 py-3 text-ink/70">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">POLLING or WEBHOOK</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">POLLING یا WEBHOOK</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">WEBHOOK_HOST / PORT / PATH / URL / SECRET</td><td class="px-4 py-3 font-mono text-xs text-ink/60">varies</td><td class="px-4 py-3 text-ink/70">⚠️</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Only used when RUN_MODE=WEBHOOK</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فقط زمانی که RUN_MODE=WEBHOOK باشد</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">TELEGRAM_PROXY_URL</td><td class="px-4 py-3 font-mono text-xs text-ink/60">http://127.0.0.1:10808</td><td class="px-4 py-3 text-ink/70">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Local Telegram proxy URL for restricted networks</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آدرس پروکسی محلی تلگرام برای شبکه‌های محدود</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">FLASK_HOST / FLASK_PORT</td><td class="px-4 py-3 font-mono text-xs text-ink/60">127.0.0.1 / 5000</td><td class="px-4 py-3 text-ink/70">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Flask bind host / port</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هاست/پورت اتصال Flask</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">FLASK_SECRET_KEY</td><td class="px-4 py-3 font-mono text-xs text-ink/60">change-me-in-production</td><td class="px-4 py-3 text-ink/70">⚠️</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Flask session secret — must change in production</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلید محرمانه نشست — باید در تولید تغییر کند</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Code-Level Constants</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثابت‌های سطح کد</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Constant</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Value</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">DB_PATH</td><td class="px-4 py-3 font-mono text-xs text-ink/70">Path(__file__).parent / "products.db"</td><td class="px-4 py-3 text-ink/60"><span class="en-text">SQLite database file location</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیر فایل پایگاه‌داده SQLite</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">PRODUCTS_PER_PAGE</td><td class="px-4 py-3 font-mono text-xs text-ink/70">2</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Products per page in Telegram pagination</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تعداد محصول در هر صفحه تلگرام</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">httpx timeout</td><td class="px-4 py-3 font-mono text-xs text-ink/70">30.0s</td><td class="px-4 py-3 text-ink/60"><span class="en-text">WooCommerce API request timeout</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تایم‌اوت درخواست API ووکامرس</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">httpx proxy</td><td class="px-4 py-3 font-mono text-xs text-ink/70">None / trust_env=False</td><td class="px-4 py-3 text-ink/60"><span class="en-text">WooCommerce client explicitly disables proxy</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلاینت ووکامرس صراحتاً پروکسی را غیرفعال می‌کند</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Bot startup timeout</td><td class="px-4 py-3 font-mono text-xs text-ink/70">30s</td><td class="px-4 py-3 text-ink/60">_ready_event.wait(timeout=30.0)</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Bot stop timeout</td><td class="px-4 py-3 font-mono text-xs text-ink/70">20s</td><td class="px-4 py-3 text-ink/60">future.result / thread.join(timeout=20.0)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Production Configuration Checklist</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چک‌لیست پیکربندی تولید</h3>
+        <div class="relative">
+          <button onclick="copyBlock('env-block', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="env-block"># ─── WooCommerce ───────────────────────────────
+SITE_URL=https://your-store.com
+ADMIN_USER_NAME=your_wp_username
+ADMIN_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
+
+# ─── Telegram bot ──────────────────────────────
+Tocken_Telegram_Bot=123456:ABC-DEF...
+
+# ─── Run mode ──────────────────────────────────
+RUN_MODE=POLLING            # or WEBHOOK
+
+# ─── Webhook (only if RUN_MODE=WEBHOOK) ────────
+# WEBHOOK_HOST=0.0.0.0
+# WEBHOOK_PORT=8443
+# WEBHOOK_PATH=/webhook
+# WEBHOOK_URL=https://your-domain.com
+# WEBHOOK_SECRET=super-secret-webhook-token
+
+# ─── Proxy (optional) ──────────────────────────
+# TELEGRAM_PROXY_URL=http://127.0.0.1:10808
+
+# ─── Flask admin panel ─────────────────────────
+FLASK_HOST=127.0.0.1
+FLASK_PORT=5000
+FLASK_SECRET_KEY=generate-a-long-random-string-here</code></pre>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          Prerequisites: Python 3.10+ (developed/tested on 3.13), a WooCommerce store with REST API enabled, a WordPress Application Password, and a Telegram bot token from @BotFather.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          پیش‌نیازها: Python 3.10+ (توسعه/تست روی 3.13)، یک فروشگاه ووکامرس با REST API فعال، یک Application Password وردپرس و یک توکن ربات تلگرام از @BotFather.
+        </p>
+
+        <div class="space-y-10">
+          <div>
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-amber/15 text-amber border border-amber/30 rounded-md px-2.5 py-1">CLI</span>
+              <code class="font-mono text-sm text-ink"><span class="en-text">Local Build &amp; Run</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اجرای محلی</span></code>
+            </div>
+            <div class="relative">
+              <button onclick="copyBlock('local-run', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="local-run"># 1. Clone
+git clone https://github.com/&lt;your-org&gt;/&lt;your-repo&gt;.git
+cd &lt;your-repo&gt;
+
+# 2. Virtual environment
+python -m venv bot
+bot\Scripts\activate            # Windows
+# source bot/bin/activate       # macOS / Linux
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Environment
+copy .env.example .env          # Windows
+# cp .env.example .env          # macOS / Linux
+
+# 5. Run
+python main.py</code></pre>
+            </div>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-sage/15 text-sage border border-sage/30 rounded-md px-2.5 py-1">Docker</span>
+              <code class="font-mono text-sm text-ink">Dockerfile + docker-compose.yml</code>
+            </div>
+            <div class="relative mb-4">
+              <button onclick="copyBlock('dockerfile', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="dockerfile">FROM python:3.13-slim
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/status')" || exit 1
+
+CMD ["python", "main.py"]</code></pre>
+            </div>
+            <div class="relative">
+              <button onclick="copyBlock('compose', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="compose">version: "3.9"
+services:
+  bot:
+    build: .
+    container_name: telegram-woo-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./products.db:/app/products.db
+    environment:
+      - FLASK_HOST=0.0.0.0</code></pre>
+            </div>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <h3 class="font-display text-lg mb-4 text-ink en-text">Systemd Service (Production)</h3>
+            <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">سرویس Systemd (تولید)</h3>
+            <div class="relative">
+              <button onclick="copyBlock('systemd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="systemd">[Unit]
+Description=Telegram E-Commerce Bot with WooCommerce Sync
+After=network.target
+
+[Service]
+Type=simple
+User=appuser
+WorkingDirectory=/opt/telegram-woo-bot
+EnvironmentFile=/opt/telegram-woo-bot/.env
+ExecStart=/opt/telegram-woo-bot/bot/bin/python /opt/telegram-woo-bot/main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+            </div>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <h3 class="font-display text-lg mb-4 text-ink en-text">Deployment Modes</h3>
+            <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">حالت‌های استقرار</h3>
+            <div class="overflow-x-auto rounded-xl border border-ink/10">
+              <table class="w-full text-left border-collapse min-w-[480px]">
+                <thead><tr class="bg-charcoal text-paper">
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Mode</th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">When to Use</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">چه زمانی استفاده شود</span></th>
+                  <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Configuration</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیکربندی</span></th>
+                </tr></thead>
+                <tbody class="bg-charcoal2 text-sm">
+                  <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Polling</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Default; simplest; no public endpoint needed</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیش‌فرض؛ ساده‌ترین؛ بدون نیاز به endpoint عمومی</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">RUN_MODE=POLLING</td></tr>
+                  <tr><td class="px-4 py-3 font-mono text-rust">Webhook</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Production with public HTTPS endpoint; lower latency</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تولید با endpoint عمومی HTTPS؛ تأخیر کمتر</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">RUN_MODE=WEBHOOK + WEBHOOK_*</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; Error Handling" data-title-fa="امنیت و مدیریت خطا"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Authentication Strategy</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">استراتژی احراز هویت</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Mechanism</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مکانیزم</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Details</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جزئیات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">WooCommerce API</td><td class="px-4 py-3 text-ink/70">Application Password (BasicAuth)</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Sent via httpx.BasicAuth</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارسال از طریق httpx.BasicAuth</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Telegram Bot</td><td class="px-4 py-3 text-ink/70">Bot token from @BotFather</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Stored in Tocken_Telegram_Bot / BOT_TOKEN</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره در Tocken_Telegram_Bot / BOT_TOKEN</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Flask Admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text badge-critical inline-block px-2 py-0.5 rounded">No auth</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Bind to 127.0.0.1 or add reverse-proxy auth in production</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اتصال به 127.0.0.1 یا افزودن احراز هویت reverse-proxy در تولید</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Webhook</td><td class="px-4 py-3 text-ink/70">WEBHOOK_SECRET</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Secret token for webhook verification</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن محرمانه برای تأیید وب‌هوک</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Security Best Practices Applied</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اصول امنیتی رعایت‌شده</h3>
+        <ul class="space-y-2 max-w-2xl mb-10">
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text">All credentials via <code class="text-xs">.env</code>; git-ignored, with a committed <code class="text-xs">.env.example</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام اعتبارنامه‌ها از طریق <code class="text-xs">.env</code>؛ در git-ignore با یک <code class="text-xs">.env.example</code> کامیت‌شده.</span></li>
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text"><code class="text-xs">trust_env=False</code>, <code class="text-xs">proxy=None</code> — prevents accidental proxy leakage of credentials.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">trust_env=False</code>، <code class="text-xs">proxy=None</code> — از نشت تصادفی اعتبارنامه از طریق پروکسی جلوگیری می‌کند.</span></li>
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text">All user-facing product data escaped with <code class="text-xs">html.escape()</code> before rendering.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام داده محصول رو به کاربر با <code class="text-xs">html.escape()</code> escape می‌شود.</span></li>
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text"><code class="text-xs">callback_data</code> strictly parsed with format validation; invalid data rejected.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعتبارسنجی سخت‌گیرانه فرمت <code class="text-xs">callback_data</code>؛ داده نامعتبر رد می‌شود.</span></li>
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text">Global error handler in PTB; try/except with logging throughout.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">error handler سراسری در PTB؛ try/except همراه با لاگ در سراسر کد.</span></li>
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text">Non-root container user (Dockerfile creates appuser, UID 1000).</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربر غیر-root در کانتینر (appuser، UID 1000).</span></li>
+          <li class="flex gap-3"><i class="fa-solid fa-check text-rust mt-1"></i><span class="text-ink/75 text-sm leading-relaxed en-text">All DB queries use parameterized statements (? placeholders) — no SQL injection surface.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام کوئری‌های پایگاه‌داده پارامتریک هستند (?) — بدون سطح حمله SQL injection.</span></li>
+        </ul>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Error Handling Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری مدیریت خطا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TD
+    subgraph BotErrors["Telegram Bot Errors"]
+        A["PTB Error Handler"] -->|"context.error"| B["logger.error"]
+        C["Polling Error Callback"] -->|"process_error"| A
+        D["Handler try except"] -->|"User friendly message"| E["reply_text error occurred"]
+    end
+
+    subgraph SyncErrors["Sync Errors"]
+        F["HTTPStatusError"] -->|"Log and collect"| G["errors list"]
+        H["RequestError network"] -->|"Log and collect"| G
+        I["JSONDecodeError"] -->|"Log and collect"| G
+        J["DB upsert error"] -->|"Log and collect"| G
+        G -->|"First 5 shown"| K["status_dict last_errors"]
+    end
+
+    subgraph FlaskErrors["Flask API Errors"]
+        L["try except in route"] -->|"500"| M["jsonify ok false"]
+        N["Business conflict"] -->|"400 or 409"| O["jsonify ok false"]
+    end
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Troubleshooting / FAQ</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">عیب‌یابی و سوالات متداول</h3>
+        <div id="faq-list" class="space-y-3 max-w-2xl"></div>
+      </div>
+
+    </section>
+  </div>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۲ — مستندات ربات فروشگاهی تلگرام';
+      if(tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 02 — Telegram E-Commerce Bot Documentation';
+      if(tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  // ---------------------------------------------------------------
+  // Chapter header injector
+  // ---------------------------------------------------------------
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',              titleFa: 'صفحه جلد',              icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',          titleFa: 'معرفی سیستم',            icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',    titleFa: 'معماری و طراحی',         icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database Schema',          titleFa: 'طرح داده‌ها',             icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API / Interface Reference',titleFa: 'مرجع API و رابط‌ها',      icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',            titleFa: 'پیکربندی',               icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',      titleFa: 'استقرار و DevOps',       icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & FAQ',           titleFa: 'امنیت و سوالات',         icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema (rendered into #db-tbody)
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'categories', fields: [
+      ['id', 'INTEGER', 'PRIMARY KEY, NOT NULL', 'WooCommerce category ID'],
+      ['name', 'TEXT', 'NOT NULL', 'Display name of the category'],
+      ['slug', 'TEXT', 'NOT NULL, UNIQUE', 'URL slug from WooCommerce'],
+    ]},
+    { table: 'products', fields: [
+      ['id', 'INTEGER', 'PRIMARY KEY, NOT NULL', 'WooCommerce product ID'],
+      ['category_id', 'INTEGER', 'NOT NULL (FK → categories.id)', 'Owning category'],
+      ['name', 'TEXT', 'NOT NULL', 'Product name'],
+      ['description', 'TEXT', 'Nullable', 'HTML-stripped description'],
+      ['price', 'TEXT', 'Nullable', 'Price as string (IRR)'],
+      ['permalink', 'TEXT', 'Nullable', 'Absolute product URL'],
+      ['image_url', 'TEXT', 'Nullable', 'First image URL from images[]'],
+    ]},
+    { table: 'Indexes', fields: [
+      ['idx_categories_slug', 'categories(slug)', '—', 'Fast lookup by slug'],
+      ['idx_products_category', 'products(category_id)', '—', 'Fast category-scoped queries & pagination'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  if (dbTbody) {
+    dbSchema.forEach(group => {
+      const headerRow = document.createElement('tr');
+      headerRow.className = 'db-row bg-ink/[0.06]';
+      headerRow.dataset.table = group.table;
+      headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+      dbTbody.appendChild(headerRow);
+      group.fields.forEach(f => {
+        const tr = document.createElement('tr');
+        tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+        tr.dataset.table = group.table;
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+          <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+          <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+          <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+        `;
+        dbTbody.appendChild(tr);
+      });
+    });
+
+    const dbFilters = document.getElementById('db-filters');
+    const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+    filterOptions.forEach((opt, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+      b.textContent = opt.label;
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+        b.classList.add('active-filter');
+        document.querySelectorAll('.db-row').forEach(row => {
+          row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+        });
+      });
+      dbFilters.appendChild(b);
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // FAQ accordion
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'The bot starts but doesn\u2019t respond to /start.',
+      qFa: 'ربات اجرا می‌شود اما به /start پاسخ نمی‌دهد.',
+      aEn: 'Verify Tocken_Telegram_Bot is set correctly, check the Flask logs for the "bot enabled" message, confirm the token with getMe, and verify the proxy (if used) is reachable.',
+      aFa: 'صحت Tocken_Telegram_Bot را بررسی کنید، لاگ‌های Flask را برای پیام فعال‌سازی ببینید، توکن را با getMe تست کنید و در صورت استفاده از پروکسی، دسترس‌پذیری آن را بررسی کنید.',
+    },
+    {
+      qEn: 'Sync fails with HTTP 401.',
+      qFa: 'سینک با خطای HTTP 401 مواجه می‌شود.',
+      aEn: 'Cause: invalid WordPress Application Password or insufficient permissions. Fix: regenerate the Application Password, ensure the user has read access to the WooCommerce REST API, and re-check ADMIN_USER_NAME / ADMIN_PASSWORD in .env.',
+      aFa: 'علت: Application Password نامعتبر وردپرس یا مجوز ناکافی. راه‌حل: بازتولید Application Password، اطمینان از دسترسی خواندن به REST API ووکامرس و بررسی مجدد ADMIN_USER_NAME / ADMIN_PASSWORD در .env.',
+    },
+    {
+      qEn: 'Sync fails with HTTP 403.',
+      qFa: 'سینک با خطای HTTP 403 مواجه می‌شود.',
+      aEn: 'Cause: host firewall blocking the WooCommerce API or missing User-Agent. The code already sends a Chrome User-Agent; check IP allowlists or test with curl -u "user:pass" against the products endpoint.',
+      aFa: 'علت: فایروال هاست یا نبود User-Agent. کد از پیش هدر Chrome User-Agent ارسال می‌کند؛ allowlist آی‌پی را بررسی یا با curl -u تست کنید.',
+    },
+    {
+      qEn: 'The bot stops responding after toggling the proxy.',
+      qFa: 'پس از تغییر وضعیت پروکسی، ربات پاسخگو نیست.',
+      aEn: 'A proxy toggle restarts the bot; if the proxy is unreachable, startup fails. Check the Flask logs, verify the proxy is running, and toggle it off if needed.',
+      aFa: 'تغییر پروکسی باعث ری‌استارت ربات می‌شود؛ اگر پروکسی در دسترس نباشد، راه‌اندازی شکست می‌خورد. لاگ‌های Flask را بررسی و در صورت نیاز پروکسی را غیرفعال کنید.',
+    },
+    {
+      qEn: 'get-db-products returns "deleted category" groups.',
+      qFa: 'get-db-products گروه‌های «دسته حذف‌شده» برمی‌گرداند.',
+      aEn: 'Products exist whose category_id no longer exists (deleted in WooCommerce after a prior sync). Run a fresh sync, or manually delete orphans: DELETE FROM products WHERE category_id NOT IN (SELECT id FROM categories).',
+      aFa: 'محصولاتی وجود دارند که category_id آن‌ها دیگر موجود نیست. یک سینک تازه اجرا کنید یا محصولات یتیم را دستی حذف کنید: DELETE FROM products WHERE category_id NOT IN (SELECT id FROM categories).',
+    },
+    {
+      qEn: 'The bot thread doesn\u2019t stop within 20 seconds.',
+      qFa: 'نخ ربات ظرف ۲۰ ثانیه متوقف نمی‌شود.',
+      aEn: 'A long-running handler or blocking network call may be holding the event loop. Check for the stop-timeout log line, and ensure no handler performs blocking I/O.',
+      aFa: 'یک هندلر طولانی یا فراخوانی مسدودکننده شبکه ممکن است event loop را نگه داشته باشد. لاگ تایم‌اوت توقف را بررسی و از عدم وجود I/O مسدودکننده در هندلرها مطمئن شوید.',
+    },
+    {
+      qEn: 'products.db grows too large over time.',
+      qFa: 'products.db با گذشت زمان بیش از حد بزرگ می‌شود.',
+      aEn: 'Repeated syncs upsert rather than duplicate, but deleted WooCommerce products remain locally. Add a cleanup step for missing products and periodically run sqlite3 products.db "VACUUM;".',
+      aFa: 'سینک‌های مکرر upsert می‌کنند نه تکرار، اما محصولات حذف‌شده در ووکامرس محلی باقی می‌مانند. یک مرحله پاک‌سازی اضافه کرده و دوره‌ای sqlite3 products.db "VACUUM;" اجرا کنید.',
+    },
+    {
+      qEn: 'Webhook mode doesn\u2019t receive updates.',
+      qFa: 'حالت وب‌هوک آپدیت دریافت نمی‌کند.',
+      aEn: 'Confirm RUN_MODE=WEBHOOK, all WEBHOOK_* variables are set, the public URL is HTTPS and reachable, and the webhook is registered with Telegram via setWebhook.',
+      aFa: 'از تنظیم RUN_MODE=WEBHOOK، همه متغیرهای WEBHOOK_*، آدرس عمومی HTTPS و ثبت وب‌هوک در تلگرام از طریق setWebhook مطمئن شوید.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL
+  // ---------------------------------------------------------------
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — BizLandingPages</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the portfolio green */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 02 — BizLandingPages Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Grade Specification</span>
+              <span class="fa-text hidden">مستندات فنی سطح تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: BizLandingPages-BLP-2026-382</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight">
+              <span class="relative inline-block">
+                <span class="relative z-10">B</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v3.8</span>
+              </span>IZLANDINGPAGES
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">Business Directory &amp; Micro-Landing Pages</span> — a production-grade WordPress plugin that turns a WordPress install into a directory of niche-aware micro-landing pages, with subscriptions, owner dashboards, and an Elementor bridge.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">دایرکتوری کسب‌وکار و صفحات فرود خرد</span> — یک افزونه وردپرس سطح تولید که یک نصب وردپرس را به دایرکتوری صفحات فرود خرد و نیچ‌آگاه تبدیل می‌کند، همراه با اشتراک، داشبورد مالک و پل الیمنتور.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <button onclick="showView('001')"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-solid fa-compass"></i>
+              <span class="en-text">System Overview</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معرفی سیستم</span>
+            </button>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">3.8.2</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production</span></span>
+            <span>OWNER <span class="text-paper font-semibold">Toocheshm</span></span>
+            <span>DEV <span class="text-paper font-semibold">MohammadTaha HosseinZadeh</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          BizLandingPages is a <strong class="text-ink">production-grade WordPress plugin</strong> that transforms a WordPress installation into a directory of micro-landing pages. Small businesses register, choose a subscription tier, and receive mobile-first business cards or classic listings with niche-gated modules — shop, scheduling, or portfolio — depending on their category and plan. The plugin owns its own CPTs, roles, payment flow, template hierarchy, and an Elementor widget/dynamic-tag bridge.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          BizLandingPages یک <strong class="text-ink">افزونه وردپرس سطح تولید</strong> است که یک نصب وردپرس را به دایرکتوری صفحات فرود خرد تبدیل می‌کند. کسب‌وکارهای کوچک ثبت‌نام می‌کنند، یک سطح اشتراک انتخاب می‌کنند و بر اساس دسته‌بندی و پلن خود، کارت کسب‌وکار موبایل‌محور یا لیستینگ کلاسیک همراه با ماژول‌های نیچ‌محور (فروشگاه، نوبت‌دهی یا نمونه‌کار) دریافت می‌کنند. افزونه، CPT، نقش‌ها، جریان پرداخت، سلسله‌مراتب قالب و پل ویجت/تگ پویای الیمنتور خود را در اختیار دارد.
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Custom Post Types</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">پست‌تایپ‌های سفارشی</p>
+            <p class="font-display text-2xl mt-1 text-rust">3</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Subscription Tiers</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">سطوح اشتراک</p>
+            <p class="font-display text-2xl mt-1 text-rust">4</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Gateway</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">درگاه پرداخت</p>
+            <p class="font-display text-2xl mt-1 text-rust">ZarinPal v4</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Primary Locale</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">زبان اصلی</p>
+            <p class="font-display text-2xl mt-1 text-rust">FA</p>
+          </div>
+        </div>
+
+        <!-- Scope -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Scope</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدوده</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text">Business registration and onboarding with multi-step flows.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت‌نام و ورود کسب‌وکار با جریان‌های چندمرحله‌ای.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text">Subscription billing with trial, base, Pro, and Pro Plus tiers.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">صورت‌حساب اشتراک با سطوح رایگان، پایه، پرو و پرو پلاس.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text">Niche-aware modules — beauty salon scheduling, barbershop slots, shop/orders.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماژول‌های نیچ‌آگاه — نوبت‌دهی سالن زیبایی، اسلات آرایشگاه مردانه، فروشگاه/سفارش.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text">Owner dashboard for profile, hours, media, scheduling, and messages.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">داشبورد مالک برای پروفایل، ساعات کاری، رسانه، نوبت‌دهی و پیام‌ها.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">05</span><span class="text-ink/75 text-sm leading-relaxed en-text">Customer club with auth modal, favorites, views, and order tracking.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">باشگاه مشتریان با مودال ورود، علاقه‌مندی، بازدید و پیگیری سفارش.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">06</span><span class="text-ink/75 text-sm leading-relaxed en-text">Marketer panel for recruitment, business onboarding, and commission tracking.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">پنل بازاریاب برای جذب، ورود کسب‌وکار و پیگیری کمیسیون.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">07</span><span class="text-ink/75 text-sm leading-relaxed en-text">Elementor integration with custom widgets and dynamic tags.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">یکپارچگی الیمنتور با ویجت‌های سفارشی و تگ‌های پویا.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">08</span><span class="text-ink/75 text-sm leading-relaxed en-text">SEO + PWA support with per-business metadata and installable service workers.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">پشتیبانی SEO + PWA با متادیتای هر کسب‌وکار و سرویس‌ورکر قابل‌نصب.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">09</span><span class="text-ink/75 text-sm leading-relaxed en-text">Cross-site sync for pushing published businesses to remote destinations.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">همگام‌سازی بین‌سایتی برای ارسال کسب‌وکارهای منتشرشده به مقاصد ریموت.</span></li>
+        </ol>
+
+        <!-- Technical Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Objective</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Modularity</td><td class="px-4 py-3 text-ink/70"><span class="en-text">One plugin owns CPT, roles, payment, templates, and the Elementor bridge</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک افزونه، CPT، نقش‌ها، پرداخت، قالب‌ها و پل الیمنتور را در اختیار دارد</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Scalability</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Singleton pattern for all service classes; cron-based maintenance</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">الگوی Singleton برای همه کلاس‌های سرویس؛ نگهداری مبتنی بر کرون</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Extensibility</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Action/filter hooks throughout; Elementor widget/dynamic tag architecture</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هوک‌های action/filter در سرتاسر کد؛ معماری ویجت/تگ پویای الیمنتور</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Localization</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Full i18n support with Persian (Farsi) as primary language</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پشتیبانی کامل i18n با فارسی به‌عنوان زبان اصلی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Security</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Nonce verification, capability checks, input sanitization, role-based access</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تایید nonce، بررسی سطح دسترسی، پاک‌سازی ورودی، دسترسی مبتنی بر نقش</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Performance</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Theme-isolated assets; conditional loading; rewrite rule versioning</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دارایی‌های ایزوله از قالب؛ بارگذاری شرطی؛ نسخه‌بندی rewrite rules</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Primary Interaction</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تعامل اصلی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Business Owners</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Frontend dashboard, payment flow</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">داشبورد فرانت‌اند، جریان پرداخت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Customers</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Public pages, auth modal, tracking</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صفحات عمومی، مودال ورود، پیگیری</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Marketers</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Marketer panel, reports</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پنل بازاریاب، گزارش‌ها</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Administrators</td><td class="px-4 py-3 text-ink/70"><span class="en-text">WP Admin settings panel</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پنل تنظیمات WP Admin</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          The plugin bootstraps as a <span class="text-ink font-medium">singleton</span> that wires four layers — <strong>Core</strong> (settings, templates, SEO, PWA, sync), <strong>Finance</strong> (plans, subscriptions, payment, ZarinPal), <strong>Users</strong> (auth, registration, dashboard, marketer, favorites), and <strong>Modules</strong> (shop, niche, scheduling, appointments) — plus an <strong>Elementor</strong> bridge for widgets and dynamic tags. Everything runs inside WordPress core with MySQL/MariaDB as the datastore.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          افزونه به‌صورت <span class="text-ink font-medium">singleton</span> بوت می‌شود و چهار لایه را به هم متصل می‌کند — <strong>هسته</strong> (تنظیمات، قالب‌ها، SEO، PWA، سینک)، <strong>مالی</strong> (پلن‌ها، اشتراک، پرداخت، زرین‌پال)، <strong>کاربران</strong> (احراز هویت، ثبت‌نام، داشبورد، بازاریاب، علاقه‌مندی) و <strong>ماژول‌ها</strong> (فروشگاه، نیچ، نوبت‌دهی، وقت‌ها) — به‌همراه پل <strong>الیمنتور</strong> برای ویجت‌ها و تگ‌های پویا. همه‌چیز درون هسته وردپرس با MySQL/MariaDB به‌عنوان مخزن داده اجرا می‌شود.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+  subgraph WPCore["WordPress Core"]
+    WP["WordPress 5.8+"]
+    DB[("MySQL / MariaDB")]
+  end
+  subgraph Bootstrap["Bootstrap"]
+    MAIN["Biz_Landing_Pages Singleton"]
+    ACT["Biz_Activator CPT and Roles"]
+  end
+  subgraph Core["Core Layer"]
+    SET["Biz_Settings"]
+    TPL["Biz_Templates"]
+    SEO["Biz_SEO"]
+    PWA["Biz_Pwa"]
+    SYNC["Biz_Sync"]
+  end
+  subgraph Finance["Finance Layer"]
+    PLANS["Biz_Plans"]
+    SUB["Biz_Subscription"]
+    PAY["Biz_Payment"]
+    ZARIN["Biz_Zarinpal"]
+  end
+  subgraph Users["Users Layer"]
+    AUTH["Biz_Auth"]
+    REG["Biz_Registration"]
+    DASH["Biz_Dashboard"]
+    MARK["Biz_Marketer"]
+  end
+  subgraph Modules["Modules Layer"]
+    SHOP["Biz_Shop"]
+    NICH["Biz_Niche"]
+    SCHED["Biz_Scheduling"]
+    APPT["Biz_Appointments"]
+  end
+  subgraph Elem["Elementor Integration"]
+    ELEM["Biz_Elementor"]
+    WIDGETS["Widgets"]
+    DTAGS["Dynamic Tags"]
+  end
+  subgraph Ext["External Services"]
+    ZARINPAL["ZarinPal Gateway"]
+    REMOTE["Remote Sync Destination"]
+  end
+  WP --> MAIN
+  MAIN --> ACT
+  MAIN --> Core
+  MAIN --> Finance
+  MAIN --> Users
+  MAIN --> Modules
+  MAIN --> Elem
+  Core --> DB
+  Finance --> DB
+  Users --> DB
+  Modules --> DB
+  PAY --> ZARINPAL
+  SYNC --> REMOTE
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Design Patterns</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">الگوهای طراحی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Pattern</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Implementation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیاده‌سازی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Singleton</td><td class="px-4 py-3 text-ink/70"><span class="en-text">All service classes use <code class="text-xs">self::$instance</code> with a private constructor</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">همه کلاس‌های سرویس از <code class="text-xs">self::$instance</code> با سازنده private استفاده می‌کنند</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Strategy</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Niche-based module selection (shop vs scheduling)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتخاب ماژول بر اساس نیچ (فروشگاه در برابر نوبت‌دهی)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Observer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Action/filter hooks for plan degradation, trial events</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هوک‌های action/filter برای تنزل پلن و رویدادهای رایگان</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Template Method</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Template loader with fallback hierarchy</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بارگذار قالب با سلسله‌مراتب fallback</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Factory</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Dynamic tag and widget registration via Elementor</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت تگ پویا و ویجت از طریق الیمنتور</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory Structure (excerpt)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار پوشه (خلاصه)</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('ascii-tree', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="ascii-tree">biz-landing-pages/
+├── biz-landing-pages.php          # Plugin header + singleton bootstrap
+├── includes/
+│   ├── core/                      # settings, seo, pwa, sync, templates, views
+│   ├── finance/                   # plans, subscription, zarinpal, payment
+│   ├── users/                     # auth, registration, dashboard, marketer, favorites
+│   ├── modules/                   # shop, niche, scheduling, appointments, term-meta
+│   └── elementor/
+│       ├── dynamic-tags/          # 14 dynamic tag classes
+│       └── widgets/                # grid, portfolio, beauty services, stats, favorites
+├── templates/
+│   ├── admin/  auth/  dashboard/  finance/  partials/  public/
+└── assets/
+    ├── css/  fonts/ (Vazirmatn)  icons/  js/</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Key Modules</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماژول‌های کلیدی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Class</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلاس</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Biz_Activator</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Registers CPTs/roles on activation, seeds taxonomy terms</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت CPT/نقش هنگام فعال‌سازی، seed کردن ترم‌های taxonomy</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Biz_Plans</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Trial/base/pro/pro_plus engine, daily degradation cron</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موتور پلن رایگان/پایه/پرو/پرو‌پلاس، کرون تنزل روزانه</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Biz_Zarinpal</td><td class="px-4 py-3 text-ink/70"><span class="en-text">ZarinPal v4 REST client (request/verify)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلاینت REST زرین‌پال نسخه ۴ (request/verify)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Biz_Dashboard</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Owner-facing profile, hours, media, scheduling panel</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پروفایل مالک، ساعات کاری، رسانه، پنل نوبت‌دهی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Biz_Niche</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Detects category and gates shop vs scheduling module</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تشخیص دسته‌بندی و فعال‌سازی ماژول فروشگاه یا نوبت‌دهی</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Biz_Elementor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Registers widgets and 14 dynamic tag classes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت ویجت‌ها و ۱۴ کلاس تگ پویا</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Hook Reference</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع هوک‌ها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[520px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Hook</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Params</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_plan_degraded_to_base</td><td class="px-4 py-3 font-mono text-xs text-ink/60">$user_id, $previous_plan</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fired when a plan expires (action)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هنگام انقضای پلن اجرا می‌شود (action)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_trial_started</td><td class="px-4 py-3 font-mono text-xs text-ink/60">$user_id</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fired when trial is granted (action)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هنگام اعطای رایگان اجرا می‌شود (action)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">show_admin_bar</td><td class="px-4 py-3 font-mono text-xs text-ink/60">$show, $user</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Controls admin bar visibility (filter)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کنترل نمایش نوار مدیریت (filter)</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">login_url</td><td class="px-4 py-3 font-mono text-xs text-ink/60">$login_url, $redirect, $force_reauth</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Custom login URL (filter)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آدرس ورود سفارشی (filter)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 003 DATABASE & DATA MODELING ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="طرح داده‌ها"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">
+          BizLandingPages does not add any custom SQL tables — the schema lives entirely inside WordPress core tables: three custom post types, two hierarchical taxonomies, and a wide set of user meta, post meta, and serialized options.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          BizLandingPages هیچ جدول SQL سفارشی اضافه نمی‌کند — طرح داده کاملاً درون جداول هسته وردپرس قرار دارد: سه پست‌تایپ سفارشی، دو taxonomy سلسله‌مراتبی و مجموعه‌ای گسترده از user meta، post meta و آپشن‌های سریالایز‌شده.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Entity Overview</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمای کلی موجودیت‌ها</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+erDiagram
+    wp_users ||--o{ wp_usermeta : has
+    wp_posts ||--o{ wp_postmeta : has
+    wp_terms ||--o{ wp_term_taxonomy : defines
+    wp_term_taxonomy ||--o{ wp_term_relationships : links
+    wp_users ||--o{ wp_posts : "authors business"
+    wp_posts {
+        int id PK
+        string post_type "business or biz_order or biz_appointment"
+        string post_status
+        int post_author FK
+    }
+    wp_term_taxonomy {
+        int term_taxonomy_id PK
+        string taxonomy "biz_location or biz_category"
+    }
+    wp_usermeta {
+        int umeta_id PK
+        int user_id FK
+        string meta_key
+    }
+    wp_postmeta {
+        int meta_id PK
+        int post_id FK
+        string meta_key
+    }
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Custom Post Types</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پست‌تایپ‌های سفارشی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Post Type</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Supports</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">business</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Business listing CPT</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">CPT لیستینگ کسب‌وکار</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">title, editor, thumbnail, author</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_order</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Mini-shop orders (admin-hidden)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سفارش‌های فروشگاه خرد (مخفی در ادمین)</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">title</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">biz_appointment</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Appointments (admin-hidden)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوبت‌ها (مخفی در ادمین)</span></td><td class="px-4 py-3 font-mono text-xs text-ink/60">title</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Custom Taxonomies &amp; Seeded Terms</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Taxonomy های سفارشی و ترم‌های اولیه</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Taxonomy</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Hierarchical</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description / Seeded Terms</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح / ترم‌های اولیه</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_location</td><td class="px-4 py-3 text-ink/60">Yes</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Province and city</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استان و شهر</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">biz_category</td><td class="px-4 py-3 text-ink/60">Yes</td><td class="px-4 py-3 text-ink/70">فروشگاهی، سالن زیبایی، آرایشگاه مردانه <span class="text-ink/40">(shop, beauty_salon, barbershop)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-4 en-text">Filter the field catalog below by meta group — user meta, post meta per CPT, and the serialized options table.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-4 fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست فیلدها را بر اساس گروه متا فیلتر کنید — user meta، post meta هر CPT و جدول options سریالایز‌شده.</p>
+
+        <div id="db-filters" class="flex flex-wrap gap-2 mb-5"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Key</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلید</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت‌ها</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 004 API / INTERFACE REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API و رابط"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          All interfaces are WordPress AJAX actions (<code class="text-xs">wp_ajax_</code> / <code class="text-xs">wp_ajax_nopriv_</code>), shortcodes, and rewrite rules — there is no separate REST namespace.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          همه رابط‌ها اکشن‌های AJAX وردپرس (<code class="text-xs">wp_ajax_</code> / <code class="text-xs">wp_ajax_nopriv_</code>)، شورت‌کدها و rewrite rule هستند — namespace جداگانه REST وجود ندارد.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">AJAX Endpoints</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اندپوینت‌های AJAX</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[620px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Action</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Auth</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دسترسی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_register_account</td><td class="px-4 py-3 text-ink/60">No</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Unified login/registration</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ورود/ثبت‌نام یکپارچه</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_submit_order</td><td class="px-4 py-3 text-ink/60">Customer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Submit shop order</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت سفارش فروشگاه</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_update_order_status</td><td class="px-4 py-3 text-ink/60">Owner</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Update order status</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بروزرسانی وضعیت سفارش</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_track_orders</td><td class="px-4 py-3 text-ink/60">Customer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Track customer orders</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیگیری سفارش‌های مشتری</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_submit_appointment_request</td><td class="px-4 py-3 text-ink/60">Customer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Book appointment</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رزرو نوبت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_get_scheduling_month</td><td class="px-4 py-3 text-ink/60">No</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Get month availability</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">در دسترس بودن ماه</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_get_scheduling_timeslots</td><td class="px-4 py-3 text-ink/60">No</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Get day timeslots</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اسلات‌های زمانی روز</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_track_appointments</td><td class="px-4 py-3 text-ink/60">Customer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Track appointments</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیگیری نوبت‌ها</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">biz_update_appointment_status</td><td class="px-4 py-3 text-ink/60">Owner</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Approve/cancel appointment</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تایید/لغو نوبت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">biz_create_manual_appointment</td><td class="px-4 py-3 text-ink/60">Owner</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Create manual appointment</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد نوبت دستی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Shortcodes</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">شورت‌کدها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Shortcode</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">[business_login]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Business login form</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فرم ورود کسب‌وکار</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">[business_registration]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Registration form</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فرم ثبت‌نام</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">[biz_marketer_dashboard]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Marketer panel page</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صفحه پنل بازاریاب</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">[biz_owner_dashboard]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Owner dashboard (triggers logout UI)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">داشبورد مالک (فعال‌ساز UI خروج)</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">[biz_business_payment]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Payment flow page</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صفحه جریان پرداخت</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Rewrite Rules &amp; Query Vars</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Rewrite Rules و Query Var ها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Rule</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Query Var</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-xs text-rust">^business/([^/]+)/shop/?$</td><td class="px-4 py-3 font-mono text-xs text-ink/70">biz_shop</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-xs text-rust">^business/([^/]+)/scheduling/?$</td><td class="px-4 py-3 font-mono text-xs text-ink/70">biz_scheduling</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-xs text-rust">^sw\.js$</td><td class="px-4 py-3 font-mono text-xs text-ink/70">biz_service_worker</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Sample Payload — Appointment Booking</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه پیلود — رزرو نوبت</h3>
+        <div class="relative mb-8">
+          <button onclick="copyBlock('appt-json', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="appt-json">// POST /wp-admin/admin-ajax.php?action=biz_submit_appointment_request
+{
+  "business_id": 123,
+  "appointment_date": "2026-09-15",
+  "slot_from": "14:00",
+  "slot_to": "15:00",
+  "services": "[\"haircut\",\"beard\"]",
+  "nonce": "abc123..."
+}
+
+// Success response
+{
+  "success": true,
+  "data": { "appointment_id": 456, "tracking": "NB-260830-X7K2M" }
+}</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">HTTP Status Codes</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کدهای وضعیت HTTP</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[420px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Code</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Usage</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربرد</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">200</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Successful AJAX response (JSON success true/false)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پاسخ موفق AJAX (JSON با success)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">403</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Nonce verification failed or insufficient permissions</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شکست تایید nonce یا دسترسی ناکافی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">404</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Business/post not found</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کسب‌وکار/پست یافت نشد</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">500</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Server error (cURL failure, database error)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خطای سرور (cURL، دیتابیس)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION & ENVIRONMENT ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی و محیط"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">All plugin settings are stored serialized under the single option <code class="text-xs">biz_lp_settings</code>, configured from WP Admin → Businesses → Settings.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;">همه تنظیمات افزونه به‌صورت سریالایز‌شده در آپشن واحد <code class="text-xs">biz_lp_settings</code> ذخیره می‌شوند و از مسیر WP Admin ← کسب‌وکارها ← تنظیمات پیکربندی می‌شوند.</p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[640px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Key</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Default</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">merchant_id</td><td class="px-4 py-3 font-mono text-xs text-ink/60">''</td><td class="px-4 py-3 text-ink/70"><span class="en-text">ZarinPal merchant UUID</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شناسه یکتای پذیرنده زرین‌پال</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">subscription_price</td><td class="px-4 py-3 font-mono text-xs text-ink/60">1000000</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Default subscription price (IRT/IRR)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">قیمت پیش‌فرض اشتراک</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">subscription_duration</td><td class="px-4 py-3 font-mono text-xs text-ink/60">365</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Duration in days</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدت اشتراک به روز</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">currency</td><td class="px-4 py-3 font-mono text-xs text-ink/60">'IRT'</td><td class="px-4 py-3 text-ink/70"><span class="en-text">IRT or IRR</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تومان یا ریال</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">trial_duration_days</td><td class="px-4 py-3 font-mono text-xs text-ink/60">7</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Free trial duration</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدت دوره رایگان</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">sync_destination_url / sync_api_secret</td><td class="px-4 py-3 font-mono text-xs text-ink/60">''</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Remote sync endpoint and secret</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آدرس و رمز سینک ریموت</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-ink">plan_pro_plus_active</td><td class="px-4 py-3 font-mono text-xs text-ink/60">false</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Pro Plus locked by default</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پرو پلاس به‌طور پیش‌فرض قفل است</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">PHP Constants &amp; Cron</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثابت‌های PHP و کرون</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[520px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Name</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Value / Schedule</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مقدار / زمان‌بندی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">BIZ_LP_VERSION</td><td class="px-4 py-3 font-mono text-xs text-ink/60">'3.8.2'</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Plugin version</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نسخه افزونه</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">BIZ_LP_PLUGIN_DIR / BIZ_LP_PLUGIN_URL</td><td class="px-4 py-3 font-mono text-xs text-ink/60">runtime</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Plugin path/URL helpers</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیر و آدرس افزونه</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">biz_plans_daily_maintenance</td><td class="px-4 py-3 font-mono text-xs text-ink/60">daily</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Cron: degrades expired plans</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کرون: تنزل پلن‌های منقضی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Environment Requirements</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیش‌نیازهای محیطی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Requirement</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Minimum</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Recommended</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیشنهادی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">WordPress</td><td class="px-4 py-3 text-ink/70">5.8+</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Latest stable</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آخرین نسخه پایدار</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">PHP</td><td class="px-4 py-3 text-ink/70">7.4+</td><td class="px-4 py-3 text-ink/70">8.0+</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">MySQL/MariaDB</td><td class="px-4 py-3 text-ink/70">5.7+</td><td class="px-4 py-3 text-ink/70">8.0+</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">HTTPS</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Required</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">الزامی</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Required (ZarinPal + PWA)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">الزامی (زرین‌پال و PWA)</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Elementor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Optional</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اختیاری</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Latest (for widgets)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آخرین نسخه (برای ویجت‌ها)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT & DEVOPS ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Install &amp; Activate</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نصب و فعال‌سازی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('install-cmd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="install-cmd">cd /path/to/wordpress/wp-content/plugins
+git clone &lt;REPO_URL&gt; biz-landing-pages
+wp plugin activate biz-landing-pages
+wp rewrite flush --hard</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Docker (Development)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Docker (توسعه)</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('dockerfile', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="dockerfile">FROM wordpress:6.4-php8.0-apache
+RUN docker-php-ext-install mysqli pdo pdo_mysql
+COPY biz-landing-pages/ /var/www/html/wp-content/plugins/biz-landing-pages/
+RUN chown -R www-data:www-data /var/www/html/wp-content/plugins/biz-landing-pages/</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Nginx Rewrite Snippet</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">قطعه Nginx برای Rewrite</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('nginx-conf', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="nginx-conf">location ~ ^/business/([^/]+)/shop/ {
+    try_files $uri $uri/ /index.php?post_type=business&name=$1&biz_shop=1;
+}
+location = /sw.js {
+    try_files $uri /index.php?biz_service_worker=1;
+}</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD Workflow</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جریان CI/CD</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart LR
+    A[Push to main] --> B[PHP Lint and CS]
+    B --> C[Unit Tests]
+    C --> D[Build Artifact]
+    D --> E[Tag Release]
+    E --> F[Deploy Staging]
+    F --> G[Deploy Production]
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Deployment Checklist</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چک‌لیست استقرار</h3>
+        <ol class="space-y-2 max-w-2xl en-text">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">1.</span>Set <code class="text-xs">merchant_id</code> to a production ZarinPal UUID.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">2.</span>Configure <code class="text-xs">sync_api_secret</code> with a strong random string.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">3.</span>Assign routing pages (auth, payment, callback, dashboard).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">4.</span>Enable HTTPS — required for ZarinPal and PWA.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">5.</span>Flush rewrite rules: <code class="text-xs">wp rewrite flush --hard</code>.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">6.</span>Verify cron is running: <code class="text-xs">wp cron event list</code>.</li>
+        </ol>
+        <ol class="space-y-2 max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۱.</span>مقدار <code class="text-xs">merchant_id</code> را به شناسه واقعی زرین‌پال تنظیم کنید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۲.</span><code class="text-xs">sync_api_secret</code> را با یک رشته تصادفی قوی مقداردهی کنید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۳.</span>صفحات مسیریابی (ورود، پرداخت، callback، داشبورد) را تخصیص دهید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۴.</span>HTTPS را فعال کنید — برای زرین‌پال و PWA الزامی است.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۵.</span>Rewrite rule ها را flush کنید: <code class="text-xs">wp rewrite flush --hard</code>.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۶.</span>اجرای کرون را بررسی کنید: <code class="text-xs">wp cron event list</code>.</li>
+        </ol>
+      </div>
+
+      <!-- ========== 007 SECURITY & ERROR HANDLING ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; Error Handling" data-title-fa="امنیت و مدیریت خطا"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Authentication Strategy</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">استراتژی احراز هویت</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+    START[User Request] --> LOGGED{Logged In?}
+    LOGGED -->|No| GUEST[Guest Access]
+    LOGGED -->|Yes| ROLE{Check Role}
+    ROLE -->|business_owner| ACTIVE{Subscription Active?}
+    ACTIVE -->|Yes| DASH[Dashboard]
+    ACTIVE -->|No| PAY[Payment Page]
+    ROLE -->|biz_customer| CUST[Customer Features]
+    ROLE -->|biz_marketer| MARK[Marketer Panel]
+    ROLE -->|administrator| ADMIN[Full Access]
+    GUEST --> REG[Registration or Login]
+    REG --> VERIFY{Verify Nonce}
+    VERIFY -->|Fail| ERROR[Error Response]
+    VERIFY -->|Success| AUTH[Authenticate]
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Security Best Practices</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">بهترین شیوه‌های امنیتی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Practice</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Implementation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیاده‌سازی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Nonce Verification</td><td class="px-4 py-3 text-ink/70"><span class="en-text">All AJAX requests use <code class="text-xs">check_ajax_referer()</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">همه درخواست‌های AJAX از <code class="text-xs">check_ajax_referer()</code> استفاده می‌کنند</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Capability Checks</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">current_user_can()</code> for admin; role checks for owners</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">current_user_can()</code> برای ادمین؛ بررسی نقش برای مالکان</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Input/Output</td><td class="px-4 py-3 text-ink/70"><span class="en-text">sanitize_text_field, absint, esc_html, esc_url everywhere</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پاک‌سازی و escape کردن در همه‌جا</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">SQL Injection Prevention</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">$wpdb->prepare()</code> for custom queries; WP_Query for standard</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">$wpdb->prepare()</code> برای کوئری‌های سفارشی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Role-Based Access</td><td class="px-4 py-3 text-ink/70"><span class="en-text">business_owner, biz_customer, biz_marketer with minimal caps</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش‌ها با حداقل دسترسی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">File Upload Validation</td><td class="px-4 py-3 text-ink/70"><span class="en-text">MIME check; extension whitelist; 6MB size limit</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بررسی MIME؛ لیست سفید پسوند؛ محدودیت ۶ مگابایت</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">HTTPS Enforcement</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">is_ssl()</code> for login; required for ZarinPal and PWA</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">is_ssl()</code> برای ورود؛ الزامی برای زرین‌پال و PWA</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Common Error Messages</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیام‌های خطای رایج</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Scenario</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سناریو</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Message (FA)</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Resolution</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌حل</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80"><span class="en-text">Invalid nonce</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">nonce نامعتبر</span></td><td class="px-4 py-3 text-ink/70 text-xs" style="font-family:'El Messiri',sans-serif;">درخواست نامعتبر است. لطفاً دوباره تلاش کنید.</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Refresh page, retry</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بارگذاری مجدد صفحه</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80"><span class="en-text">Wrong credentials</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اطلاعات ورود اشتباه</span></td><td class="px-4 py-3 text-ink/70 text-xs" style="font-family:'El Messiri',sans-serif;">شماره موبایل یا رمز عبور اشتباه است.</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Check credentials</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بررسی اطلاعات ورود</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80"><span class="en-text">Slot unavailable</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اسلات در دسترس نیست</span></td><td class="px-4 py-3 text-ink/70 text-xs" style="font-family:'El Messiri',sans-serif;">این ساعت قبلاً رزرو شده است.</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Choose different time</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتخاب ساعت دیگر</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80"><span class="en-text">File too large</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">حجم فایل زیاد است</span></td><td class="px-4 py-3 text-ink/70 text-xs" style="font-family:'El Messiri',sans-serif;">حجم تصویر رسید نباید بیشتر از ۶ مگابایت باشد.</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Compress image</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فشرده‌سازی تصویر</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/80"><span class="en-text">ZarinPal connection</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اتصال زرین‌پال</span></td><td class="px-4 py-3 text-ink/70 text-xs" style="font-family:'El Messiri',sans-serif;">خطا در اتصال به درگاه پرداخت.</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Check cURL/SSL</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بررسی cURL/SSL</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — BizLandingPages v3.8.2 — Toocheshm · MohammadTaha HosseinZadeh · © 2026 All rights reserved.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — BizLandingPages نسخه ۳.۸.۲ — توچشم · محمدطاها حسین‌زاده · © ۱۴۰۵ تمامی حقوق محفوظ است.</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۲ — مستندات BizLandingPages';
+      if (tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 02 — BizLandingPages Documentation';
+      if (tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  // ---------------------------------------------------------------
+  // Back button
+  // ---------------------------------------------------------------
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  // ---------------------------------------------------------------
+  // Chapter header injector
+  // ---------------------------------------------------------------
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',                 titleFa: 'صفحه جلد',              icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',             titleFa: 'معرفی سیستم',           icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',       titleFa: 'معماری و طراحی',        icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database & Data Modeling',    titleFa: 'طرح داده‌ها',            icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API / Interface Reference',   titleFa: 'مرجع API و رابط',        icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration & Environment', titleFa: 'پیکربندی و محیط',        icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',         titleFa: 'استقرار و DevOps',       icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & Error Handling',   titleFa: 'امنیت و مدیریت خطا',     icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database / meta schema (filterable)
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'User Meta (wp_usermeta)', fields: [
+      ['_biz_subscription_plan', 'string', "trial | base | pro | pro_plus | ''", 'Current plan tier'],
+      ['_biz_subscription_expires', 'datetime', 'MySQL datetime; empty = never', 'Plan expiration (GMT)'],
+      ['_biz_trial_used', 'flag', "'1' = used", 'Whether free trial was consumed'],
+      ['_biz_trial_expired_lock', 'flag', "'1' = locked", 'Lock after trial expiry'],
+      ['_biz_subscription_status', 'string', 'pending | active | expired', 'Legacy access status'],
+      ['_biz_needs_password', 'flag', "'1' = needs setup", 'Customer needs password setup'],
+      ['user_phone', 'string', 'Used as login identifier', 'Normalized phone number'],
+    ]},
+    { table: 'Business Post Meta', fields: [
+      ['_biz_shop_enabled', 'flag', "'1' / '0'", 'Shop module enabled'],
+      ['_biz_scheduling_enabled', 'flag', "'1' / '0'", 'Scheduling module enabled'],
+    ]},
+    { table: 'Order Post Meta (biz_order)', fields: [
+      ['_biz_order_business_id', 'int', 'FK', 'Associated business post ID'],
+      ['_biz_order_tracking', 'string', 'BZ-YYMMDD-XXXXX', 'Human-friendly tracking ID'],
+      ['_biz_order_items', 'array', 'Serialized', 'Cart items'],
+      ['_biz_order_total', 'int', '', 'Total amount'],
+      ['_biz_order_status', 'string', 'pending | approved | rejected | completed', 'Order status'],
+      ['_biz_order_receipt_id', 'int', 'Attachment ID', 'Receipt attachment'],
+    ]},
+    { table: 'Appointment Post Meta (biz_appointment)', fields: [
+      ['_biz_appointment_business_id', 'int', 'FK', 'Associated business post ID'],
+      ['_biz_appointment_date', 'date', 'Y-m-d', 'Appointment date'],
+      ['_biz_appointment_slot_from / _slot_to', 'time', 'H:i', 'Start/end time'],
+      ['_biz_appointment_status', 'string', 'pending | approved | cancelled', 'Appointment status'],
+      ['_biz_appointment_tracking', 'string', 'NB-YYMMDD-XXXXX', 'Tracking ID'],
+      ['_biz_appointment_duration_minutes', 'int', '', 'Service duration'],
+      ['_biz_appointment_deposit_amount', 'int', '', 'Deposit amount'],
+    ]},
+    { table: 'Options Table', fields: [
+      ['biz_lp_settings', 'array', 'Serialized', 'Plugin settings'],
+      ['biz_lp_coupons', 'array', 'Serialized', 'Discount coupons'],
+      ['biz_rewrite_version', 'int', 'current: 5', 'Rewrite rules version'],
+      ['biz_niche_terms_seeded', 'flag', '', 'Niche terms seeded flag'],
+      ['biz_pwa_rewrite_flushed', 'flag', '', 'PWA rewrite flush flag'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion (from Troubleshooting table)
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'Permalinks / shop page returns 404 — what to check?',
+      qFa: 'پرمالینک‌ها یا صفحه فروشگاه ۴۰۴ می‌دهد — چه بررسی کنم؟',
+      aEn: 'Rewrite rules were not flushed. Visit Settings → Permalinks → Save, or reactivate the plugin / run wp rewrite flush --hard.',
+      aFa: 'Rewrite rule ها flush نشده‌اند. به تنظیمات ← پیوندهای یکتا رفته و ذخیره کنید، یا افزونه را دوباره فعال کرده یا wp rewrite flush --hard را اجرا کنید.',
+    },
+    {
+      qEn: 'Scheduling panel not showing for a business?',
+      qFa: 'پنل نوبت‌دهی برای یک کسب‌وکار نمایش داده نمی‌شود؟',
+      aEn: 'The niche taxonomy term is not set, or the scheduling module flag is disabled. Assign beauty_salon or barbershop under biz_category.',
+      aFa: 'ترم taxonomy نیچ تنظیم نشده یا ماژول نوبت‌دهی غیرفعال است. ترم سالن زیبایی یا آرایشگاه مردانه را زیر biz_category اختصاص دهید.',
+    },
+    {
+      qEn: 'ZarinPal returns a connection error?',
+      qFa: 'زرین‌پال خطای اتصال می‌دهد؟',
+      aEn: 'Verify the merchant UUID is correct and that the cURL extension with valid SSL certificates is available on the server.',
+      aFa: 'صحت شناسه پذیرنده را بررسی کرده و اطمینان حاصل کنید افزونه cURL با گواهی SSL معتبر روی سرور فعال است.',
+    },
+    {
+      qEn: 'PWA install prompt never appears?',
+      qFa: 'درخواست نصب PWA هرگز ظاهر نمی‌شود؟',
+      aEn: 'HTTPS is required, and the sw.js rewrite must be flushed after activation — same fix as the permalinks issue above.',
+      aFa: 'HTTPS الزامی است و rewrite مربوط به sw.js باید پس از فعال‌سازی flush شود — همان راه‌حل مشکل پرمالینک بالا.',
+    },
+    {
+      qEn: 'Free trial not granted to a new owner?',
+      qFa: 'دوره رایگان به مالک جدید اعطا نمی‌شود؟',
+      aEn: 'Check the _biz_trial_used user meta — the trial can only be consumed once per account.',
+      aFa: 'مقدار متای کاربر _biz_trial_used را بررسی کنید — دوره رایگان فقط یک‌بار به ازای هر حساب قابل استفاده است.',
+    },
+    {
+      qEn: 'Plans not degrading after expiry?',
+      qFa: 'پلن‌ها پس از انقضا تنزل پیدا نمی‌کنند؟',
+      aEn: 'The daily cron biz_plans_daily_maintenance must be running. Check with wp cron event list and run it manually if WP-Cron is disabled.',
+      aFa: 'کرون روزانه biz_plans_daily_maintenance باید در حال اجرا باشد. با wp cron event list بررسی کرده و در صورت غیرفعال بودن WP-Cron آن را دستی اجرا کنید.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL (accepts fa/Fa/FA and en/En/EN)
+  // ---------------------------------------------------------------
+  const urlLangRaw = new URL(window.location.href).searchParams.get('lang');
+  const urlLang = urlLangRaw ? urlLangRaw.toLowerCase() : null;
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>

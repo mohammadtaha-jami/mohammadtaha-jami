@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — Team Management System</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the portfolio green */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 02 — Team Management System Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Ready Specification</span>
+              <span class="fa-text hidden">مستندات فنی آماده تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: TMS-BALTAZAR-PLUS-2026-100</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight">
+              <span class="relative inline-block">
+                <span class="relative z-10">T</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v1</span>
+              </span>EAM MANAGEMENT SYSTEM
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">Team Management System (Baltazar Plus)</span> — a full-stack, self-hosted platform centralizing attendance tracking, task assignment, daily reporting, and performance warnings for remote and hybrid teams.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">سامانه مدیریت تیم (Baltazar Plus)</span> — یک پلتفرم کامل و خوداستقرار که ردیابی حضور و غیاب، تخصیص وظایف، گزارش‌دهی روزانه و اخطارهای عملکردی را برای تیم‌های ریموت و هیبریدی در یک سیستم واحد متمرکز می‌کند.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <button onclick="showView('001')"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-solid fa-compass"></i>
+              <span class="en-text">System Overview</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معرفی سیستم</span>
+            </button>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v1.0.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production-Ready</span></span>
+            <span>OWNER <span class="text-paper font-semibold">Baltazar Team</span></span>
+            <span>DEV <span class="text-paper font-semibold">MohammadTaha HosseinZadeh &amp; Javid Zia</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          The <strong class="text-ink">Team Management System</strong> is a <strong class="text-ink">full-stack, self-hosted platform</strong> designed to solve the problem of managing remote and hybrid teams by centralizing attendance tracking, task assignment, daily reporting, and performance warnings into a single unified system. It replaces scattered spreadsheets, manual check-ins, and ad-hoc Telegram messages with role-based dashboards (Admin, Supervisor, Employee), automated daily/weekly reports, a configurable warning &amp; penalty engine, and seamless Telegram bot notifications.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          <strong class="text-ink">سامانه مدیریت تیم</strong> یک <strong class="text-ink">پلتفرم کامل و خوداستقرار</strong> است که برای حل مشکل مدیریت تیم‌های ریموت و هیبریدی طراحی شده و ردیابی حضور و غیاب، تخصیص وظایف، گزارش‌دهی روزانه و اخطارهای عملکردی را در یک سیستم یکپارچه متمرکز می‌کند. این سامانه جایگزین اکسل‌های پراکنده، چک‌این‌های دستی و پیام‌های موردی تلگرام می‌شود؛ با داشبوردهای مبتنی بر نقش (مدیر، سرپرست، کارمند)، گزارش‌های خودکار روزانه/هفتگی، موتور اخطار و جریمه قابل‌پیکربندی و اعلان‌های یکپارچه از طریق ربات تلگرام.
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Core Apps</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">اپ‌های اصلی</p>
+            <p class="font-display text-2xl mt-1 text-rust">6</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Persistence</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">SQLite / PG</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Auth</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت</p>
+            <p class="font-display text-2xl mt-1 text-rust">JWT</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Calendar</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">تقویم</p>
+            <p class="font-display text-2xl mt-1 text-rust">Jalali</p>
+          </div>
+        </div>
+
+        <!-- Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Automate attendance verification</span> — reduce managerial overhead by 70% through automated report collection and verification workflows.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">اتوماسیون تایید حضور</span> — کاهش بار مدیریتی تا ۷۰٪ از طریق جمع‌آوری و تایید خودکار گزارش‌ها.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Enforce accountability</span> — a configurable warning &amp; penalty engine auto-generates warnings for incomplete, fake, or missing reports.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">اجرای پاسخگویی</span> — موتور اخطار و جریمه قابل‌پیکربندی برای گزارش‌های ناقص، جعلی یا مفقود، اخطار خودکار صادر می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Real-time visibility</span> — daily task reports and weekly attendance summaries delivered to managers via Telegram.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">دید لحظه‌ای</span> — گزارش‌های روزانه وظایف و خلاصه‌های هفتگی حضور از طریق تلگرام برای مدیران ارسال می‌شود.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Data integrity</span> — unique constraints and transactional workflows prevent duplicate reports and attendance records.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">یکپارچگی داده</span> — محدودیت‌های یکتایی و جریان‌های تراکنشی از تکرار گزارش و رکورد حضور جلوگیری می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">05</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Persian (Jalali) calendar</span> — full Persian date support via jalaali-js on the frontend.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">تقویم فارسی (جلالی)</span> — پشتیبانی کامل تاریخ فارسی از طریق jalaali-js در فرانت‌اند.</span></li>
+        </ol>
+
+        <!-- Scope -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Scope</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">دامنه پروژه</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">In-Scope</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">در دامنه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Out-of-Scope</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از دامنه</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70"><span class="en-text">User authentication &amp; role management</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت و مدیریت نقش کاربران</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Multi-tenant SaaS hosting</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">میزبانی SaaS چند‌مستاجری</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70"><span class="en-text">Task creation, assignment &amp; tracking</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد، تخصیص و پیگیری وظایف</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Mobile native applications</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اپلیکیشن‌های موبایل نیتیو</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70"><span class="en-text">Daily report submission &amp; verification</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت و تایید گزارش روزانه</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Real-time chat / messaging</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">چت / پیام‌رسانی لحظه‌ای</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70"><span class="en-text">Attendance check-in / check-out</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">چک‌این / چک‌اوت حضور</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Payroll processing</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پردازش حقوق و دستمزد</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70"><span class="en-text">Warning &amp; penalty automation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اتوماسیون اخطار و جریمه</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Third-party HR integrations</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">یکپارچه‌سازی با سیستم‌های HR ثالث</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70"><span class="en-text">Weekly attendance report generation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تولید گزارش هفتگی حضور</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Advanced analytics / BI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تحلیل پیشرفته / BI</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/70"><span class="en-text">Calendar events &amp; leave requests</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رویدادهای تقویم و درخواست مرخصی</span></td><td class="px-4 py-3 text-ink/70">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Key Needs</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نیازهای کلیدی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text">System owner</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مالک سیستم</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Full control, user management, system configuration</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کنترل کامل، مدیریت کاربران، پیکربندی سیستم</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Supervisor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Team manager</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیر تیم</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Task assignment, report verification, warning issuance</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تخصیص وظیفه، تایید گزارش، صدور اخطار</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Employee</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Team member</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو تیم</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Task status updates, daily reports, attendance check-in</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">به‌روزرسانی وظایف، گزارش روزانه، چک‌این حضور</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Telegram Bot</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Automated agent</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عامل خودکار</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Scheduled report delivery, notifications</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارسال زمان‌بندی‌شده گزارش، اعلان‌ها</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">The system follows a <strong class="text-ink">Monolithic Backend + SPA Frontend</strong> architecture with a modular Django app structure: Accounts, Tasks, Reports, Warnings, Calendar Events, and a Bot Scheduler, all behind a Django REST Framework API gateway with JWT authentication.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">این سیستم از معماری <strong class="text-ink">بک‌اند مونولیتیک + فرانت‌اند SPA</strong> با ساختار ماژولار Django پیروی می‌کند: اپ‌های Accounts، Tasks، Reports، Warnings، Calendar Events و Bot Scheduler، همگی پشت یک API gateway مبتنی بر Django REST Framework با احراز هویت JWT.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+    subgraph Client["Client Layer"]
+        A["React SPA (Vite + Tailwind)"] --> B[Axios HTTP Client]
+        C["Telegram Bot"] --> D[Telegram API]
+    end
+    subgraph Backend["Backend Layer (Django)"]
+        B --> E["API Gateway (DRF)"]
+        E --> F["JWT Auth (SimpleJWT)"]
+        E --> G[Accounts App]
+        E --> H[Tasks App]
+        E --> I[Reports App]
+        E --> J[Warnings App]
+        E --> K[Calendar Events App]
+        E --> L[Bot Scheduler App]
+    end
+    subgraph Data["Data Layer"]
+        F --> M[("SQLite / PostgreSQL")]
+        H --> M
+        I --> M
+        J --> M
+        K --> M
+        L --> M
+    end
+    subgraph External["External Services"]
+        L --> N[Telegram Bot API]
+        N --> C
+    end
+    A -->|"HTTPS / REST"| E
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Request Flow</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جریان درخواست</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    participant U as User (React SPA)
+    participant A as API Gateway (DRF)
+    participant J as JWT Auth
+    participant V as ViewSet
+    participant DB as Database
+    participant T as Telegram Bot
+
+    U->>A: POST /api/auth/login/
+    A->>J: Validate credentials
+    J-->>A: Access + Refresh Token
+    A-->>U: 200 OK
+
+    U->>A: GET /api/tasks/
+    A->>J: Verify JWT
+    A->>V: TaskViewSet.get_queryset
+    V->>DB: Filter by role
+    DB-->>V: Task queryset
+    V-->>A: Serialized data
+    A-->>U: 200 OK
+
+    U->>A: POST /api/reports/
+    A->>V: DailyReportViewSet.perform_create
+    V->>DB: Check holiday and time window
+    V->>DB: Create DailyReport
+    V-->>A: 201 Created
+
+    Note over T: Scheduled at 23:00 daily
+    T->>A: APScheduler trigger
+    A->>DB: Query today's reports
+    A->>T: Send Telegram message
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Layered Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری لایه‌ای</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+graph TD
+    subgraph Presentation
+        P1[React SPA]
+        P2[Telegram Bot]
+    end
+    subgraph API
+        A1[URL Routing] --> A2[DRF ViewSets]
+        A2 --> A3[Serializers]
+        A2 --> A4[JWT Auth]
+        A2 --> A5[Permission Classes]
+    end
+    subgraph Business["Business Logic"]
+        B1[Task Management]
+        B2[Report Verification]
+        B3[Warning Engine]
+        B4[Attendance Tracking]
+        B5[Leave Management]
+        B6[Telegram Notifications]
+    end
+    subgraph Storage
+        S1[("SQLite / PostgreSQL")]
+    end
+    P1 --> A1
+    P2 --> A1
+    A2 --> B1 & B2 & B3 & B4 & B5 & B6
+    B1 & B2 & B3 & B4 & B5 & B6 --> S1
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory / Folder Structure</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار پوشه‌ها</h3>
+        <div class="relative">
+          <button onclick="copyBlock('ascii-tree', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="ascii-tree">Team_management/
+├── core/                          # Django project configuration
+│   ├── settings.py
+│   ├── urls.py
+│   ├── wsgi.py
+│   └── asgi.py
+├── accounts/                      # User management & authentication
+│   ├── models.py  serializers.py  views.py
+│   ├── urls.py  permissions.py  utils.py
+│   └── migrations/
+├── tasks/                         # Task management module
+│   ├── models.py  serializers.py  views.py
+│   ├── urls.py  signals.py
+│   └── migrations/
+├── reports/                       # Daily reports & attendance
+│   ├── models.py
+│   ├── serializers.py  serializers_attendance.py
+│   ├── views.py  views_attendance.py
+│   ├── urls.py  utils.py
+│   └── migrations/
+├── warningss/                     # Warning & penalty engine
+│   ├── models.py  serializers.py  views.py  urls.py
+│   └── migrations/
+├── calendar_events/                # Calendar & leave management
+│   ├── models.py  serializers.py  views.py
+│   ├── urls.py  permissions.py  utils.py
+│   └── migrations/
+├── bot/                            # Telegram bot integration
+│   ├── models.py  telegram.py  message_builder.py  scheduler.py
+│   └── migrations/
+├── bot_scheduler/                  # APScheduler automation
+│   ├── models.py  scheduler.py  tasks.py
+│   └── migrations/
+├── team_management_frontend/       # React frontend
+│   ├── src/
+│   │   ├── pages/  components/  api/  hooks/
+│   │   ├── layouts/  router/  utils/  styles/
+│   ├── package.json  vite.config.js  tailwind.config.js
+│   ├── nginx.conf  vercel.json
+├── static/
+├── manage.py
+├── requirements.txt
+├── db.sqlite3
+├── DEPLOYMENT.md  INSTALL.md  QUICK_START.md  README.md</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Entity Relationships</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">روابط موجودیت‌ها</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto">
+          <pre class="mermaid">
+erDiagram
+    USER ||--o{ TASK : "assigned_to / manager"
+    USER }o--o{ TASK : "assigned_members"
+    TASK ||--o{ TASK_MEMBER_ASSIGNMENT : has
+    USER ||--o{ TASK_MEMBER_ASSIGNMENT : has
+    USER ||--o{ DAILY_REPORT : submits
+    TASK ||--o{ DAILY_REPORT : receives
+    USER ||--o{ ATTENDANCE : records
+    USER ||--o{ WEEKLY_ATTENDANCE_REPORT : has
+    USER ||--o{ WARNING : receives
+    TASK ||--o{ WARNING : triggers
+    WARNING ||--o{ WARNING_DELETE_LOG : logged
+    USER ||--o{ EVENT : creates
+    USER ||--o{ LEAVE_REQUEST : requests
+          </pre>
+        </div>
+      </div>
+
+      <!-- ========== 003 DATABASE SCHEMA ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="طرح داده‌ها"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">
+          The system of record is a relational database (SQLite for development, PostgreSQL for production) accessed exclusively through the Django ORM. Unique constraints enforce one report per user/task/day, one check-in per user/day, and one weekly report per user/week.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          سیستم رکورد، یک پایگاه‌داده رابطه‌ای است (SQLite برای توسعه، PostgreSQL برای تولید) که فقط از طریق Django ORM در دسترس است. محدودیت‌های یکتایی، یک گزارش به ازای هر کاربر/وظیفه/روز، یک چک‌این به ازای هر کاربر/روز و یک گزارش هفتگی به ازای هر کاربر/هفته را تضمین می‌کند.
+        </p>
+
+        <div id="db-filters" class="flex flex-wrap gap-2 mb-5"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Field</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فیلد</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت‌ها</span></th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2"></tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Data Flow</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جریان داده</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Daily report</span> — employee submits (12:00–22:00), manager verifies (until 23:00); non-complete status auto-creates a pending warning.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">گزارش روزانه</span> — کارمند ثبت می‌کند (۱۲:۰۰–۲۲:۰۰)، مدیر تایید می‌کند (تا ۲۳:۰۰)؛ وضعیت غیر کامل به‌صورت خودکار اخطار در انتظار ایجاد می‌کند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Attendance</span> — check-in/out creates and updates records; weekly report auto-generated every Saturday 08:00.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">حضور و غیاب</span> — چک‌این/چک‌اوت رکورد ایجاد و به‌روزرسانی می‌کند؛ گزارش هفتگی هر شنبه ساعت ۰۸:۰۰ خودکار تولید می‌شود.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Warning</span> — created pending for 24 hours, then becomes active; 10 consecutive warning-free days remove one warning, all deletions logged.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">اخطار</span> — ابتدا به مدت ۲۴ ساعت در انتظار، سپس فعال می‌شود؛ ۱۰ روز متوالی بدون اخطار، یک اخطار حذف می‌کند و همه حذف‌ها ثبت می‌شود.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Telegram</span> — daily 23:00 task reports, Saturday 08:00 weekly generation, Saturday 23:00 approval check.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">تلگرام</span> — گزارش روزانه وظایف ساعت ۲۳:۰۰، تولید هفتگی شنبه ۰۸:۰۰، بررسی تایید شنبه ۲۳:۰۰.</span></li>
+        </ol>
+      </div>
+
+      <!-- ========== 004 API REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          A Django REST Framework API secured by JWT (SimpleJWT). Managers see all records; employees see only their own. Reports are time-window restricted (12:00–22:00) unless the task is an attendance task.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          یک API مبتنی بر Django REST Framework که با JWT (SimpleJWT) امن شده است. مدیران همه رکوردها را می‌بینند؛ کارمندان فقط رکوردهای خود را. گزارش‌ها در بازه زمانی محدود هستند (۱۲:۰۰–۲۲:۰۰) مگر اینکه وظیفه از نوع حضور باشد.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Endpoint Catalog</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست Endpoint‌ها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[620px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Endpoint</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Purpose</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Access</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دسترسی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/auth/login/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Authenticate, issue JWT pair</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت، صدور جفت JWT</span></td><td class="px-4 py-3 text-ink/60">Public</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/auth/refresh/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Refresh access token</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تازه‌سازی access token</span></td><td class="px-4 py-3 text-ink/60">Public</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/auth/me/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Current user profile</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پروفایل کاربر جاری</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List visible tasks</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست وظایف قابل مشاهده</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Create task</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد وظیفه</span></td><td class="px-4 py-3 text-ink/60">Admin</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">PUT</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/{id}/status/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Update task status</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">به‌روزرسانی وضعیت وظیفه</span></td><td class="px-4 py-3 text-ink/60"><span class="en-text">Admin / assignee</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیر / مسئول</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/{id}/manager_panel/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member warning statistics</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آمار اخطار اعضا</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/{id}/member_warnings/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Warning history for member</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تاریخچه اخطار عضو</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/{id}/today_reports/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Today's reports for all members</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">گزارش‌های امروز همه اعضا</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/{id}/send_daily_report_to_telegram/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Manually push report to Telegram</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارسال دستی گزارش به تلگرام</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/tasks/{id}/activate|deactivate/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Toggle task active state</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تغییر وضعیت فعال وظیفه</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET / POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/reports/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List / submit daily reports</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست / ثبت گزارش روزانه</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/reports/{id}/verify/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Verify report; may create pending warning</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تایید گزارش؛ ممکن است اخطار در انتظار ایجاد کند</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/warnings/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List visible warnings</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست اخطارهای قابل مشاهده</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/calendar/events/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List calendar events</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست رویدادهای تقویم</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/calendar/leaves/request/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Submit leave request (≥2 days ahead, max 3/month)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت درخواست مرخصی (حداقل ۲ روز قبل، حداکثر ۳ در ماه)</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/calendar/leaves/my/ | /all/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Own vs all leave requests</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">درخواست‌های خود در برابر همه</span></td><td class="px-4 py-3 text-ink/60"><span class="en-text">Auth / manager</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربر / مدیر</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">PATCH</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/calendar/leaves/{id}/handle/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Accept / reject leave</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پذیرش / رد مرخصی</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/accounts/users/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List all users</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست همه کاربران</span></td><td class="px-4 py-3 text-ink/60">Auth</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/users/with_stats/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Users with role &amp; warning stats</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربران با آمار نقش و اخطار</span></td><td class="px-4 py-3 text-ink/60">Admin</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/api/users/create/</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Create a new user</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد کاربر جدید</span></td><td class="px-4 py-3 text-ink/60">Manager</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="relative mb-4">
+          <button onclick="copyBlock('login-req', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <p class="font-mono text-[10px] uppercase tracking-widest text-ink/40 mb-1.5">POST /api/auth/login/</p>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="login-req">{
+  "username": "john_doe",
+  "password": "secure_password"
+}
+// 200 OK
+{
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-8 mb-4 text-ink en-text">HTTP Status Codes</h3>
+        <h3 class="font-display text-lg mt-8 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کدهای وضعیت HTTP</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Code</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Usage</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربرد</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">200 / 201 / 204</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Success (read / create / delete)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موفقیت (خواندن / ایجاد / حذف)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">400</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Validation error / holiday / time window</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خطای اعتبارسنجی / تعطیلی / بازه زمانی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">401</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Missing / invalid / expired token</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن نامعتبر / منقضی / گمشده</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">403</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Insufficient role / permission</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش / مجوز ناکافی</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">404 / 500</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Not found / server error</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">یافت نشد / خطای سرور</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی و محیط"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">All secrets and environment-specific values are supplied via environment variables and Django settings. Production must set <code class="text-xs">DEBUG=False</code>, restrict hosts, and whitelist CORS/CSRF origins.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">همه اسرار و مقادیر خاص محیط از طریق متغیرهای محیطی و تنظیمات Django تامین می‌شوند. در محیط تولید باید <code class="text-xs">DEBUG=False</code> تنظیم شود، میزبان‌ها محدود و مبداهای CORS/CSRF فهرست‌سفید شوند.</p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[640px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Default</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">SECRET_KEY</td><td class="px-4 py-3 font-mono text-xs text-ink/60">django-insecure-CHANGE-ME</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Django secret key — must change in production</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلید مخفی Django — در تولید باید تغییر کند</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">DEBUG</td><td class="px-4 py-3 font-mono text-xs text-ink/60">False</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Debug mode flag</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پرچم حالت دیباگ</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">ALLOWED_HOSTS</td><td class="px-4 py-3 font-mono text-xs text-ink/60">*</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Allowed hostnames</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نام میزبان‌های مجاز</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">TELEGRAM_BOT_TOKEN</td><td class="px-4 py-3 font-mono text-xs text-ink/60">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Telegram bot API token</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن API ربات تلگرام</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">TELEGRAM_GROUP_CHAT_ID</td><td class="px-4 py-3 font-mono text-xs text-ink/60">-1002259543237</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Telegram group chat ID</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شناسه گروه تلگرام</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">DB_NAME / DB_USER / DB_PASSWORD</td><td class="px-4 py-3 font-mono text-xs text-ink/60">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">PostgreSQL credentials</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اطلاعات ورود PostgreSQL</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-ink">DB_HOST / DB_PORT</td><td class="px-4 py-3 font-mono text-xs text-ink/60">localhost / 5432</td><td class="px-4 py-3 text-ink/70"><span class="en-text">PostgreSQL host and port</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">میزبان و پورت PostgreSQL</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Django Settings</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">تنظیمات Django</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Setting</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Value</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">AUTH_USER_MODEL</td><td class="px-4 py-3 font-mono text-xs text-rust">accounts.User</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">SIMPLE_JWT.ACCESS_TOKEN_LIFETIME</td><td class="px-4 py-3 font-mono text-xs text-rust">60 minutes</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-ink">SIMPLE_JWT.REFRESH_TOKEN_LIFETIME</td><td class="px-4 py-3 font-mono text-xs text-rust">7 days</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-ink">CORS_ALLOWED_ORIGINS</td><td class="px-4 py-3 font-mono text-xs text-rust">localhost:5173, vercel.app</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-ink">TIME_ZONE</td><td class="px-4 py-3 font-mono text-xs text-rust">UTC</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Scheduled Jobs (APScheduler)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جاب‌های زمان‌بندی‌شده</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Job ID</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Schedule</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">زمان‌بندی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">daily_task_report</td><td class="px-4 py-3 text-ink/70">Daily 23:00</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Send daily task reports to Telegram</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارسال گزارش روزانه وظایف به تلگرام</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">generate_weekly_attendance_reports</td><td class="px-4 py-3 text-ink/70">Saturday 08:00</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Generate weekly attendance reports</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تولید گزارش هفتگی حضور</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">check_and_send_weekly_attendance_approval</td><td class="px-4 py-3 text-ink/70">Saturday 23:00</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Check approvals and send weekly summaries</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بررسی تاییدها و ارسال خلاصه‌های هفتگی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Sample .env (Production)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه .env (تولید)</h3>
+        <div class="relative">
+          <button onclick="copyBlock('env-sample', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="env-sample">SECRET_KEY=&lt;generated-secure-key&gt;
+DEBUG=False
+ALLOWED_HOSTS=api.yourdomain.com,192.168.1.100
+CORS_ALLOW_ALL_ORIGINS=False
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
+CSRF_TRUSTED_ORIGINS=https://yourdomain.com
+
+DB_ENGINE=django.db.backends.postgresql
+DB_NAME=team_db
+DB_USER=team_user
+DB_PASSWORD=&lt;strong-password&gt;
+DB_HOST=localhost
+DB_PORT=5432
+
+TELEGRAM_BOT_TOKEN=&lt;your-bot-token&gt;
+TELEGRAM_GROUP_CHAT_ID=&lt;your-group-chat-id&gt;</code></pre>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Backend Setup</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌اندازی بک‌اند</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('backend-cmd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="backend-cmd">python -m venv venv
+source venv/bin/activate          # Windows: .\venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py collectstatic
+python manage.py runserver</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Frontend Setup</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌اندازی فرانت‌اند</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('frontend-cmd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="frontend-cmd">cd team_management_frontend
+npm install
+npm run dev          # development
+npm run build         # production build
+npm run preview</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Docker Compose</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Docker Compose</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('compose-yml', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="compose-yml">services:
+  backend:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_GROUP_CHAT_ID=${TELEGRAM_GROUP_CHAT_ID}
+    volumes:
+      - ./db.sqlite3:/app/db.sqlite3
+      - ./staticfiles:/app/staticfiles
+    restart: unless-stopped
+
+  frontend:
+    build: ./team_management_frontend
+    ports: ["80:80"]
+    depends_on: [backend]
+    restart: unless-stopped</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD Pipeline</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایپ‌لاین CI/CD</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart LR
+    A[Push to main] --> B[Backend Tests]
+    A --> C[Frontend Build and Lint]
+    B --> D{All Passing?}
+    C --> D
+    D -- Yes --> E[Deploy to Server]
+    D -- No --> F[Fail Pipeline]
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Production Security Checklist</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چک‌لیست امنیتی تولید</h3>
+        <ol class="space-y-2 max-w-2xl en-text">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">1.</span>Generate a new secure <code class="text-xs">SECRET_KEY</code>.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">2.</span>Set <code class="text-xs">DEBUG = False</code> and restrict <code class="text-xs">ALLOWED_HOSTS</code>.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">3.</span>Whitelist CORS/CSRF trusted origins; never allow all.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">4.</span>Enable HTTPS and use PostgreSQL instead of SQLite.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">5.</span>Schedule regular database backups and error monitoring.</li>
+        </ol>
+        <ol class="space-y-2 max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۱.</span>یک <code class="text-xs">SECRET_KEY</code> امن جدید تولید کنید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۲.</span><code class="text-xs">DEBUG = False</code> تنظیم و <code class="text-xs">ALLOWED_HOSTS</code> را محدود کنید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۳.</span>مبداهای CORS/CSRF را فهرست‌سفید کنید؛ هرگز اجازه همه را ندهید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۴.</span>HTTPS را فعال و به‌جای SQLite از PostgreSQL استفاده کنید.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۵.</span>پشتیبان‌گیری منظم دیتابیس و مانیتورینگ خطا را برنامه‌ریزی کنید.</li>
+        </ol>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; Error Handling" data-title-fa="امنیت و مدیریت خطا"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Authentication Strategy</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">استراتژی احراز هویت</h3>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">JWT via djangorestframework-simplejwt: short-lived access tokens (60 min) for API calls, long-lived refresh tokens (7 days) to renew access, and session authentication as a fallback for the Django admin.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">JWT از طریق djangorestframework-simplejwt: توکن‌های access کوتاه‌مدت (۶۰ دقیقه) برای فراخوانی API، توکن‌های refresh بلندمدت (۷ روز) برای تمدید access، و احراز هویت session به‌عنوان پشتیبان برای پنل ادمین Django.</p>
+
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    C->>S: POST /api/auth/login/
+    S-->>C: 200 access + refresh
+    C->>S: GET /api/tasks/ (Bearer access)
+    S-->>C: 200 tasks
+    Note over C: Access token expires (60 min)
+    C->>S: POST /api/auth/refresh/
+    S-->>C: 200 new access
+    Note over C: Refresh token expires (7 days)
+    C->>S: POST /api/auth/login/ (re-authenticate)
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Role-Based Access Control</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کنترل دسترسی مبتنی بر نقش</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Role</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Value</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Permissions</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مجوزها</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">ADMIN</td><td class="px-4 py-3 text-ink/60">1</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Full system access, user management, all tasks/reports</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دسترسی کامل، مدیریت کاربران، همه وظایف/گزارش‌ها</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">SUPERVISOR</td><td class="px-4 py-3 text-ink/60">2</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Task management, report verification, warning issuance</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت وظیفه، تایید گزارش، صدور اخطار</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">EMPLOYEE</td><td class="px-4 py-3 text-ink/60">3</td><td class="px-4 py-3 text-ink/70"><span class="en-text">View own tasks, submit reports, check-in/out, request leave</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مشاهده وظایف خود، ثبت گزارش، چک‌این/اوت، درخواست مرخصی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Security Best Practices</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">بهترین شیوه‌های امنیتی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Practice</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شیوه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Implementation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیاده‌سازی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Risk</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ریسک</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80 font-mono text-rust">S1</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Password hashing — Django PBKDF2 default</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هش کردن رمز — پیش‌فرض PBKDF2 در Django</span></td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">LOW</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80 font-mono text-rust">S2</td><td class="px-4 py-3 text-ink/70"><span class="en-text">JWT signed with HS256; secrets outside git</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">امضای JWT با HS256؛ اسرار خارج از git</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80 font-mono text-rust">S3</td><td class="px-4 py-3 text-ink/70"><span class="en-text">CORS whitelist required in production</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست‌سفید CORS در تولید الزامی است</span></td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">CRITICAL</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80 font-mono text-rust">S4</td><td class="px-4 py-3 text-ink/70"><span class="en-text">SQL injection mitigated by Django ORM</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تزریق SQL توسط Django ORM کنترل می‌شود</span></td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">LOW</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/80 font-mono text-rust">S5</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Bot token / chat ID must move to env vars</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن ربات / شناسه چت باید به env منتقل شود</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Common Error Responses</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پاسخ‌های خطای رایج</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('err-sample', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="err-sample">// 401 Unauthorized
+{
+  "detail": "Given token not valid for any token type",
+  "code": "token_not_valid"
+}
+
+// 403 Forbidden
+{ "detail": "Only the team manager or task manager may edit." }
+
+// 404 Not Found
+{ "detail": "The requested resource was not found." }</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — Team Management System (Baltazar Plus) — MohammadTaha HosseinZadeh &amp; Javid Zia · © 2026 All rights reserved.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — سامانه مدیریت تیم (Baltazar Plus) — محمدطاها حسین‌زاده و جاوید ضیاء · © ۱۴۰۵ تمامی حقوق محفوظ است.</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۲ — مستندات سامانه مدیریت تیم';
+      if (tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 02 — Team Management System Documentation';
+      if (tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  // ---------------------------------------------------------------
+  // Back button
+  // ---------------------------------------------------------------
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  // ---------------------------------------------------------------
+  // Chapter header injector
+  // ---------------------------------------------------------------
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',              titleFa: 'صفحه جلد',             icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',          titleFa: 'معرفی سیستم',           icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',    titleFa: 'معماری و طراحی',        icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database & Data Modeling', titleFa: 'طرح داده‌ها',            icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API Reference',            titleFa: 'مرجع API',              icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',            titleFa: 'پیکربندی',              icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',      titleFa: 'استقرار و DevOps',      icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & FAQ',           titleFa: 'امنیت و سوالات',        icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema (Chapter 003)
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'accounts_user', fields: [
+      ['id', 'BigAutoField', 'Primary key', 'PK, auto-increment'],
+      ['username', 'Varchar(150)', 'Login identifier', 'UNIQUE, NOT NULL'],
+      ['password', 'Varchar(128)', 'Hashed password', 'NOT NULL'],
+      ['role', 'PositiveSmallInteger', '1=ADMIN, 2=SUPERVISOR, 3=EMPLOYEE', 'Default: 3'],
+      ['is_staff / is_superuser', 'Boolean', 'Django admin flags', 'Default: false'],
+      ['date_joined', 'DateTime', 'Account creation date', 'Auto-set'],
+    ]},
+    { table: 'tasks_task', fields: [
+      ['id', 'BigAutoField', 'Primary key', 'PK'],
+      ['title', 'Varchar(255)', 'Task title', 'NOT NULL'],
+      ['assigned_to', 'FK → User', 'Primary assignee', 'NULL, SET_NULL'],
+      ['assigned_members', 'M2M → User', 'Team members on task', 'related_name: member_tasks'],
+      ['manager', 'FK → User', 'Task manager', 'NULL, SET_NULL'],
+      ['status', 'Varchar(20)', 'todo / doing / done', "Default: 'todo'"],
+      ['is_attendance_task', 'Boolean', 'Skips report time window', 'Default: false'],
+      ['weekly_required_hours', 'Float', 'Required weekly hours', 'Default: 30.0'],
+      ['manager_warning_penalty', 'Integer', 'Warning penalty value', 'Default: 1'],
+    ]},
+    { table: 'tasks_taskmemberassignment', fields: [
+      ['task', 'FK → Task', 'Associated task', 'CASCADE'],
+      ['user', 'FK → User', 'Assigned user', 'CASCADE'],
+      ['assignment', 'Text', 'Specific assignment notes', 'Blank allowed'],
+    ]},
+    { table: 'reports_dailyreport', fields: [
+      ['user', 'FK → User', 'Report author', 'SET_NULL, NULL'],
+      ['task', 'FK → Task', 'Related task', 'CASCADE'],
+      ['report_date', 'Date', 'Report date', 'NOT NULL'],
+      ['status_sent', 'Integer', '1=Complete, 2=Incomplete, 3=Fake, 4=Done-no-report', 'NOT NULL'],
+      ['status_verified', 'Integer', 'Manager-verified status', 'NULL'],
+      ['verified_by', 'FK → User', 'Verifying manager', 'SET_NULL, NULL'],
+    ]},
+    { table: 'reports_attendance', fields: [
+      ['user', 'FK → User', 'Attending user', 'CASCADE'],
+      ['date', 'Date', 'Attendance date', 'Default: today'],
+      ['check_in / check_out', 'DateTime', 'Clock-in / clock-out times', 'NULL'],
+    ]},
+    { table: 'reports_weeklyattendancereport', fields: [
+      ['user', 'FK → User', 'Report owner', 'CASCADE'],
+      ['week_start_date / week_end_date', 'Date', 'Saturday to Friday range', 'NOT NULL'],
+      ['total_hours / total_days', 'Float / Integer', 'Aggregated attendance', 'Default: 0'],
+      ['status', 'Integer', '1=Pending, 2=Approved, 3=Rejected', 'Default: 1'],
+    ]},
+    { table: 'warningss_warning', fields: [
+      ['user', 'FK → User', 'Warned user', 'CASCADE'],
+      ['task', 'FK → Task', 'Related task', 'CASCADE'],
+      ['amount', 'Decimal(6,2)', 'Warning amount', 'Default: 0'],
+      ['is_pending / pending_until', 'Boolean / DateTime', '24-hour pending window', 'Default: false / NULL'],
+    ]},
+    { table: 'warningss_warningdeletelog', fields: [
+      ['warning', 'FK → Warning', 'Deleted warning', 'SET_NULL, NULL'],
+      ['deleted_by', 'FK → User', 'Deleting user', 'SET_NULL, NULL'],
+      ['delete_reason', 'Text', 'Reason for deletion', 'Blank allowed'],
+    ]},
+    { table: 'warningss_warningsettings (singleton)', fields: [
+      ['penalty_incomplete_report', 'Decimal(6,2)', 'Incomplete report penalty', 'Default: 1.00'],
+      ['penalty_fake_report', 'Decimal(6,2)', 'Fake report penalty', 'Default: 1.50'],
+      ['penalty_no_report', 'Decimal(6,2)', 'No report penalty', 'Default: 1.00'],
+      ['penalty_weekly_low_hours', 'Decimal(6,2)', 'Low weekly hours penalty', 'Default: 1.00'],
+    ]},
+    { table: 'calendar_events_event', fields: [
+      ['date', 'Date', 'Event date', 'UNIQUE, NOT NULL'],
+      ['message', 'Text', 'Event message', 'NULL'],
+      ['created_by', 'FK → User', 'Event creator', 'SET_NULL, NULL'],
+    ]},
+    { table: 'calendar_events_leaverequest', fields: [
+      ['user', 'FK → User', 'Requesting user', 'CASCADE'],
+      ['date', 'Date', 'Leave date', 'NOT NULL — unique with user'],
+      ['status', 'Varchar(10)', 'pending / accepted / rejected', "Default: 'pending'"],
+      ['handled_by', 'FK → User', 'Handling manager', 'SET_NULL, NULL'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[2]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion (Chapter 007)
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'Scheduler jobs are not running — what to check?',
+      qFa: 'جاب‌های زمان‌بند اجرا نمی‌شوند — چه باید بررسی کرد؟',
+      aEn: 'Verify APScheduler tables exist (run migrate), check startup logs, ensure the server process runs continuously, and confirm the timezone setting matches your local timezone.',
+      aFa: 'وجود جداول APScheduler را بررسی کنید (migrate را اجرا کنید)، لاگ‌های راه‌اندازی را چک کنید، مطمئن شوید فرآیند سرور به‌طور پیوسته اجرا می‌شود و تنظیم timezone با منطقه زمانی محلی مطابقت دارد.',
+    },
+    {
+      qEn: 'Telegram bot is not sending messages',
+      qFa: 'ربات تلگرام پیام ارسال نمی‌کند',
+      aEn: 'Verify TELEGRAM_BOT_TOKEN and TELEGRAM_GROUP_CHAT_ID are correct, confirm the bot has admin permissions in the group, and test with a manual send via the send_daily_report_to_telegram endpoint.',
+      aFa: 'صحت TELEGRAM_BOT_TOKEN و TELEGRAM_GROUP_CHAT_ID را بررسی کنید، مطمئن شوید ربات مجوز مدیریت در گروه دارد و با endpoint ارسال دستی گزارش تست کنید.',
+    },
+    {
+      qEn: 'CORS errors in the browser',
+      qFa: 'خطاهای CORS در مرورگر',
+      aEn: 'Verify CORS_ALLOWED_ORIGINS includes the frontend URL, check CSRF_TRUSTED_ORIGINS for POST requests, and ensure corsheaders.middleware.CorsMiddleware is registered in MIDDLEWARE.',
+      aFa: 'مطمئن شوید CORS_ALLOWED_ORIGINS شامل URL فرانت‌اند است، CSRF_TRUSTED_ORIGINS برای درخواست‌های POST را بررسی کنید و corsheaders.middleware.CorsMiddleware در MIDDLEWARE ثبت شده باشد.',
+    },
+    {
+      qEn: 'JWT token expired — what next?',
+      qFa: 'توکن JWT منقضی شده — چه باید کرد؟',
+      aEn: 'Use the refresh token to obtain a new access token; if the refresh token has also expired, the user must log in again. Check SIMPLE_JWT lifetime settings if this happens too often.',
+      aFa: 'از توکن refresh برای دریافت access token جدید استفاده کنید؛ اگر refresh هم منقضی شده، کاربر باید دوباره وارد شود. اگر این اتفاق زیاد رخ می‌دهد، تنظیمات SIMPLE_JWT را بررسی کنید.',
+    },
+    {
+      qEn: 'Report submission is rejected — why?',
+      qFa: 'ثبت گزارش رد می‌شود — چرا؟',
+      aEn: 'Check if today is a holiday or event date, verify the task is active, confirm the time window (12:00–22:00) unless it is an attendance task, and check whether a report already exists for today.',
+      aFa: 'بررسی کنید امروز تعطیل یا رویداد نباشد، وظیفه فعال باشد، بازه زمانی (۱۲:۰۰–۲۲:۰۰) رعایت شده باشد مگر وظیفه از نوع حضور باشد، و گزارشی برای امروز از قبل ثبت نشده باشد.',
+    },
+    {
+      qEn: 'A warning is expected but not showing',
+      qFa: 'اخطاری انتظار می‌رود اما نمایش داده نمی‌شود',
+      aEn: 'Warnings enter a 24-hour pending state before becoming active. Check the is_pending and pending_until fields, confirm the report was verified with a non-complete status, and check WarningSettings penalty values.',
+      aFa: 'اخطارها ابتدا به مدت ۲۴ ساعت در حالت انتظار قرار می‌گیرند. فیلدهای is_pending و pending_until را بررسی کنید، مطمئن شوید گزارش با وضعیت غیر کامل تایید شده و مقادیر جریمه در WarningSettings را چک کنید.',
+    },
+    {
+      qEn: 'SQLite "database is locked" errors',
+      qFa: 'خطای «database is locked» در SQLite',
+      aEn: 'Switch to PostgreSQL for production, ensure only one process writes to the database at a time, check for long-running transactions, and consider enabling WAL journal mode for SQLite development use.',
+      aFa: 'برای تولید به PostgreSQL مهاجرت کنید، مطمئن شوید فقط یک فرآیند هم‌زمان روی دیتابیس می‌نویسد، تراکنش‌های طولانی را بررسی کنید و برای توسعه، فعال‌سازی حالت WAL در SQLite را مد نظر بگیرید.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL
+  // ---------------------------------------------------------------
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>
