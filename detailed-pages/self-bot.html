@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — Telegram Lead Intelligence (self-bot)</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  .cover-display-title { direction: ltr; unicode-bidi: isolate; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the portfolio green */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 01 — self-bot Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Grade Specification</span>
+              <span class="fa-text hidden">مستندات فنی سطح تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: Self-Bot-Telegram-Lead-2026-100</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight cover-display-title" dir="ltr">
+              <span class="relative inline-block">
+                <span class="relative z-10">T</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v0.1</span>
+              </span>ELEGRAM LEAD INTELLIGENCE
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">self-bot</span> — a multi-tenant, event-driven SaaS for Telegram lead detection that ingests group/channel messages, scores buying intent, and alerts tenants via Saved Messages.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">self-bot</span> — یک SaaS چند‌مستاجره و رویداد-محور برای شناسایی لید در تلگرام که پیام‌های گروه/کانال را دریافت، نیت خرید را امتیازدهی و از طریق Saved Messages به مستاجر هشدار می‌دهد.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <a href="https://github.com/mohammadtaha-jami/self-bot" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-brands fa-github"></i>
+              <span class="en-text">Repository</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مخزن کد</span>
+              <span class="font-mono text-xs opacity-70 hidden sm:inline">mohammadtaha-jami/self-bot</span>
+            </a>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v0.1.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production-Grade</span></span>
+            <span>UI <span class="text-paper font-semibold">Persian RTL</span></span>
+            <span>DEV <span class="text-paper font-semibold">MohammadTaha Hosseinzadeh</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+<p class="text-ink/75 leading-relaxed max-w-2xl en-text  mb-6">Sales and agency teams miss buying-intent messages buried in Telegram groups and channels. <strong class="text-ink">self-bot</strong> is a <strong class="text-ink">multi-tenant, event-driven SaaS</strong> that authenticates tenant Telegram accounts, runs a license-gated listening engine, scores leads as <strong class="text-ink">low / warm / hot</strong>, and notifies tenants via Telegram Saved Messages.</p>
+<p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden  mb-6" style="font-family:'El Messiri',sans-serif;line-height:2;">تیم‌های فروش و آژانس پیام‌های دارای نیت خرید را در گروه‌ها و کانال‌های تلگرام از دست می‌دهند. <strong class="text-ink">self-bot</strong> یک <strong class="text-ink">SaaS چندمستاجره و رویدادمحور</strong> است که حساب تلگرام مستاجر را احراز می‌کند، موتور شنود را با لایسنس کنترل می‌کند، لیدها را <strong class="text-ink">low / warm / hot</strong> امتیازدهی می‌کند و از طریق Saved Messages اطلاع می‌دهد.</p><h3 class="font-display text-lg mb-4 text-ink en-text">Five-step pipeline</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خط لوله پنج‌مرحله‌ای</h3><ol class="space-y-3 max-w-2xl mb-8 list-decimal list-inside text-ink/75 text-sm en-text"><li class="leading-relaxed">Authenticate tenant Telegram account (Pyrogram string session stored in PostgreSQL).</li><li class="leading-relaxed">Start/stop listening engine from <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">/dashboard</code>, gated by <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">is_active</code> and <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">subscription_end</code>.</li><li class="leading-relaxed">Ingest group/channel messages (Telethon listener) and enqueue matching via Celery + Redis.</li><li class="leading-relaxed">Score matches with RapidFuzz, keyword presets, and custom keywords.</li><li class="leading-relaxed">Persist leads and notify tenant via Telegram Saved Messages.</li></ol><ol class="space-y-3 max-w-2xl mb-8 list-decimal list-inside text-ink/75 text-sm fa-text hidden" style="font-family:'El Messiri',sans-serif;"><li class="leading-relaxed" style="line-height:2;">احراز هویت حساب تلگرام مستاجر (session string در PostgreSQL).</li><li class="leading-relaxed" style="line-height:2;">شروع/توقف موتور شنود از داشبورد، با کنترل is_active و subscription_end.</li><li class="leading-relaxed" style="line-height:2;">دریافت پیام گروه/کانال (Telethon) و صف‌بندی Celery + Redis.</li><li class="leading-relaxed" style="line-height:2;">امتیازدهی با RapidFuzz، preset و کلمات سفارشی.</li><li class="leading-relaxed" style="line-height:2;">ذخیره لید و اعلان Saved Messages.</li></ol><div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-4 mb-8"><div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5"><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Bounded Modules</p><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماژول‌ها</p><p class="font-display text-xl sm:text-2xl mt-1 text-rust">4</p></div><div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5"><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Data Stores</p><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p><p class="font-display text-xl sm:text-2xl mt-1 text-rust">PostgreSQL + Redis</p></div><div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5"><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Tenancy</p><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">چندمستاجره</p><p class="font-display text-xl sm:text-2xl mt-1 text-rust">Multi-tenant</p></div><div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5"><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Matching</p><p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">تطبیق</p><p class="font-display text-xl sm:text-2xl mt-1 text-rust">RapidFuzz</p></div></div><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[480px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش</span></th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Platform operator</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Creates tenants, attaches Telegram sessions, renews licenses</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد مستاجر، اتصال session، تمدید لایسنس</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Tenant (dashboard user)</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Manages keywords, starts/stops engine, receives alerts</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت کلمات، start/stop موتور، دریافت لید</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Operations</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Runs Postgres 15, Redis 7, Uvicorn, Celery worker, Telethon listener</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Postgres، Redis، Uvicorn، Celery، Listener</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Telegram (external)</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Message source; Saved Messages destination</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">منبع پیام؛ مقصد Saved Messages</span></td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical objectives (T1–T5)</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی (T1–T5)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[560px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">ID</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Objective</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Mechanism</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مکانیزم</span></th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">T1</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Isolate tenants</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جداسازی مستاجران</span></td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">user_id FKs; Redis keys user:{id}:*</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">FK و کلیدهای Redis</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">T2</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fast keyword evaluation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ارزیابی سریع کلمات</span></td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Merged list in Redis; worker reads cache before DB</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کش Redis قبل از DB</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">T3</td><td class="px-4 py-3 text-ink/70"><span class="en-text">License-gated ingest</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شنود با لایسنس</span></td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">subscription_end; Redis license_valid; start rejects expired</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">subscription_end و license_valid</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">T4</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Operator control of Telegram identity</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کنترل هویت تلگرام</span></td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Admin send-code / verify-code → telegram_sessions</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">send-code / verify-code</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">T5</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Observable engine</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موتور قابل مشاهده</span></td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Pipeline steps + Redis pipeline log + heartbeats</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">pipeline log و heartbeat</span></td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">In scope</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">در محدوده</h3><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-4">JWT + HttpOnly cookie auth; bcrypt; admin HTML panels and tenant dashboard; keyword presets + custom keywords + Redis merge; engine start/stop/status; lead matching, PostgreSQL persistence, Telethon notification.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-4" style="font-family:'El Messiri',sans-serif;">JWT و کوکی HttpOnly؛ bcrypt؛ پنل ادمین و داشبورد؛ preset و کلمات سفارشی؛ start/stop موتور؛ تطبیق لید و اعلان Telethon.</p><h3 class="font-display text-lg mb-4 text-ink en-text">Out of scope (current codebase)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده (کد فعلی)</h3><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-6">Kubernetes manifests and GitHub Actions (target strategy in §6); full leads/feedback API (NotImplementedError); true microservices split and multi-region HA.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;">Kubernetes و GitHub Actions (هدف §6)؛ API کامل leads/feedback؛ میکروسرویس واقعی و HA چندمنطقه‌ای.</p><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Logical layers</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه‌های منطقی</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[540px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Layer</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Location</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Presentation</td><td class="px-4 py-3 font-mono text-xs text-ink/80">modules/admin_and_api/templates/</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Jinja2 + Tailwind CDN + fetch()</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Jinja2 + Tailwind + fetch</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">HTTP / application</td><td class="px-4 py-3 font-mono text-xs text-ink/80">FastAPI routers</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Auth, admin, keywords, engine, licenses</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Auth، admin، keywords، engine</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Domain / matching</td><td class="px-4 py-3 font-mono text-xs text-ink/80">modules/processor/matching.py</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Keyword rules, lead level</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">قوانین کلمه و سطح لید</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Integration</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Telethon / Pyrogram</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Ingest and notify</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دریافت و اعلان</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Persistence</td><td class="px-4 py-3 font-mono text-xs text-ink/80">SQLAlchemy 2 async + Alembic</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Canonical tenant data</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">داده مستاجر</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Cache / bus</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Redis RESP2</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Keywords, engine status, pub/sub, Celery broker</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">وضعیت موتور و Celery</span></td></tr></tbody>
+  </table>
+</div>      </div>
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-8"><strong class="text-ink">Modular monolith</strong> (not microservices): one Python repository with four bounded modules (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">listener</code>, <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">processor</code>, <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">notification</code>, <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">admin_and_api</code>), shared ORM, and Redis as broker, cache, and control plane.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-8" style="font-family:'El Messiri',sans-serif;"><strong class="text-ink">مونولیت ماژولار</strong>: یک مخزن Python با چهار ماژول، ORM مشترک و Redis به‌عنوان بروکر، کش و کنترل.</p><h3 class="font-display text-lg mb-4 text-ink en-text">High-level architecture (§2.2)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا (§2.2)</h3><div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+  <pre class="mermaid">
+flowchart LR
+  subgraph Clients
+    A[Admin browser]
+    T[Tenant dashboard]
+  end
+  subgraph API["admin_and_api FastAPI"]
+    AUTH[JWT / cookie]
+    ENG[Engine pipeline]
+    KW[Keywords]
+    ADM[Admin users / Telegram auth]
+  end
+  subgraph Data
+    PG[(PostgreSQL 15)]
+    RD[(Redis 7)]
+  end
+  subgraph Runtime
+    L[Telethon listener]
+    C[Celery processor]
+    N[Notification Telethon]
+  end
+  TG[Telegram cloud]
+  A --> AUTH
+  T --> AUTH
+  AUTH --> ENG
+  AUTH --> KW
+  AUTH --> ADM
+  ADM --> PG
+  ENG --> PG
+  ENG --> RD
+  KW --> PG
+  KW --> RD
+  TG --> L
+  L --> C
+  C --> RD
+  C --> PG
+  C --> N
+  N --> TG
+  </pre>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Control and data sequence (§2.3)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توالی کنترل و داده (§2.3)</h3><div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as Tenant dashboard
+  participant API as FastAPI
+  participant PG as PostgreSQL
+  participant R as Redis
+  participant L as Listener
+  participant W as Celery worker
+  participant TG as Telegram
+  U->>API: POST /api/v1/engine/start Bearer JWT
+  API->>PG: Check is_active, subscription_end, telegram_sessions
+  API->>PG: Load custom keywords + merge with presets
+  API->>R: SET user:{id}:keywords JSON
+  API->>PG: UPDATE telegram_sessions.is_engine_active = true
+  API->>R: SET user:{id}:status engine_active/license_valid
+  API->>R: PUBLISH engine:control start
+  API-->>U: EngineActionResponse + pipeline steps
+  L->>PG: SELECT sessions WHERE is_active AND is_engine_active
+  TG->>L: NewMessage group/channel
+  L->>W: Celery tasks.process_raw_message
+  W->>R: GET user:{id}:status
+  alt engine_active and license_valid
+    W->>R: GET user:{id}:keywords
+    W->>W: RapidFuzz match
+    W->>PG: Persist source/person/message/lead
+    W->>TG: Saved Messages notification
+  else
+    W-->>W: Ignore message
+  end
+  </pre>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Logical layers (§2.4)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه‌های منطقی (§2.4)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[540px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Layer</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Location</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Presentation</td><td class="px-4 py-3 font-mono text-xs text-ink/80">modules/admin_and_api/templates/</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Jinja2 + Tailwind CDN + fetch()</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Jinja2 + Tailwind + fetch</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">HTTP / application</td><td class="px-4 py-3 font-mono text-xs text-ink/80">FastAPI routers</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Auth, admin, keywords, engine, licenses</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Auth، admin، keywords، engine</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Domain / matching</td><td class="px-4 py-3 font-mono text-xs text-ink/80">modules/processor/matching.py</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Keyword rules, lead level</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">قوانین کلمه و سطح لید</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Integration</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Telethon / Pyrogram</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Ingest and notify</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دریافت و اعلان</span></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Persistence</td><td class="px-4 py-3 font-mono text-xs text-ink/80">SQLAlchemy 2 async + Alembic</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Canonical tenant data</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">داده مستاجر</span></td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Cache / bus</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Redis RESP2</td><td class="px-4 py-3 text-ink/70 text-sm"><span class="en-text">Keywords, engine status, pub/sub, Celery broker</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">وضعیت موتور و Celery</span></td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Directory structure (§2.5)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار پوشه (§2.5)</h3><div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-10 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="dir-tree">self-bot/
+├── alembic.ini
+├── alembic/
+│   ├── env.py
+│   └── versions/
+├── config/presets/
+│   ├── programmer.json
+│   ├── web_designer.json
+│   ├── seo_specialist.json
+│   └── real_estate.json
+├── core/
+│   ├── config.py
+│   ├── database.py
+│   ├── cache.py
+│   ├── security.py
+│   └── logger.py
+├── shared/
+│   ├── models.py
+│   └── enums.py
+├── modules/
+│   ├── listener/
+│   ├── processor/
+│   ├── notification/
+│   └── admin_and_api/
+├── creat-admin.py
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── doc/</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('dir-tree', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div>      </div>
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="طرح داده و پایگاه"></div>
+<p class="text-ink/75 leading-relaxed max-w-2xl en-text  mb-6">PostgreSQL holds canonical tenant and lead data; Redis holds hot keyword merges, engine status, pub/sub control, and Celery broker state. Tenant isolation is <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">users.id</code>; <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">sources</code> / <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">persons</code> / <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">messages</code> are shared Telegram graph entities.</p>
+<p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden  mb-6" style="font-family:'El Messiri',sans-serif;line-height:2;">PostgreSQL داده مستاجر و لید را نگه می‌دارد؛ Redis کلمات، وضعیت موتور و Celery را. جداسازی با users.id است؛ sources/persons/messages گراف مشترک تلگرام‌اند.</p><h3 class="font-display text-lg mb-4 text-ink en-text">Entity-relationship overview (§3.1)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمای ER (§3.1)</h3><div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+  <pre class="mermaid">
+erDiagram
+  users ||--o{ telegram_sessions : owns
+  users ||--o{ keywords : defines
+  users ||--o{ leads : receives
+  users ||--o{ feedbacks : writes
+  sources ||--o{ messages : contains
+  persons ||--o{ messages : authors
+  persons ||--o{ leads : attributed
+  messages ||--o{ leads : produces
+  leads ||--o{ feedbacks : rated
+  </pre>
+</div><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-6">Operational flow: admin creates users and sessions → tenant keywords + JSON presets → engine sets is_engine_active → on match, processor upserts sources/persons and inserts messages/leads.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;">جریان: ایجاد user/session → کلمات + preset → is_engine_active → در تطبیق، upsert و insert لید.</p><h3 class="font-display text-lg mb-4 text-ink en-text">Schema breakdown (§3.3)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جداول PostgreSQL (§3.3)</h3><div class="flex items-center gap-2 flex-wrap mb-4" id="db-filters"></div><div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+  <table class="w-full text-left border-collapse min-w-[560px]">
+    <thead><tr class="bg-charcoal text-paper">
+      <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Field</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فیلد</span></th>
+      <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+      <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت</span></th>
+      <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+    </tr></thead>
+    <tbody id="db-tbody"></tbody>
+  </table>
+</div><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Redis data model (§3.4)</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدل Redis (§3.4)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[520px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Key / channel</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Type</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Payload</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محتوا</span></th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">user:{id}:keywords</td><td class="px-4 py-3 font-mono text-xs text-ink/80">STRING JSON</td><td class="px-4 py-3 text-ink/70 text-sm">final/default/custom/negative keywords</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">user:{id}:status</td><td class="px-4 py-3 font-mono text-xs text-ink/80">STRING JSON</td><td class="px-4 py-3 text-ink/70 text-sm">engine_active, license_valid</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">user:{id}:pipeline_log</td><td class="px-4 py-3 font-mono text-xs text-ink/80">LIST JSON</td><td class="px-4 py-3 text-ink/70 text-sm">Engine pipeline steps (capped)</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">engine:control</td><td class="px-4 py-3 font-mono text-xs text-ink/80">PUBSUB</td><td class="px-4 py-3 text-ink/70 text-sm">start|stop + user_id</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">service:listener:heartbeat</td><td class="px-4 py-3 font-mono text-xs text-ink/80">STRING</td><td class="px-4 py-3 text-ink/70 text-sm">Listener liveness</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">service:processor:heartbeat</td><td class="px-4 py-3 font-mono text-xs text-ink/80">STRING</td><td class="px-4 py-3 text-ink/70 text-sm">Worker liveness</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">Celery broker</td><td class="px-4 py-3 font-mono text-xs text-ink/80">Redis DB</td><td class="px-4 py-3 text-ink/70 text-sm">Task queues</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">queue:raw_messages</td><td class="px-4 py-3 font-mono text-xs text-ink/80">LIST</td><td class="px-4 py-3 text-ink/70 text-sm">Optional via REDIS_QUEUE_NAME</td></tr></tbody>
+  </table>
+</div>      </div>
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API"></div>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-8">Base URL: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">http://127.0.0.1:8000</code> · Interactive docs: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">/docs</code> · Auth: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">Authorization: Bearer &lt;access_token&gt;</code> (register/login excepted; admin HTML also uses HttpOnly cookie <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">access_token</code>).</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-8" style="font-family:'El Messiri',sans-serif;">آدرس پایه 127.0.0.1:8000 · مستندات /docs · Bearer JWT (به‌جز login/register).</p><h3 class="font-display text-lg mb-4 text-ink en-text">HTML routes (§4.1)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیرهای HTML (§4.1)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/login</td><td class="px-4 py-3 text-ink/70 text-sm">Login form</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/dashboard</td><td class="px-4 py-3 text-ink/70 text-sm">Tenant keywords + engine</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/, /admin</td><td class="px-4 py-3 text-ink/70 text-sm">Admin gate + Telegram connect</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/users</td><td class="px-4 py-3 text-ink/70 text-sm">User table + edit modal</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/sessions</td><td class="px-4 py-3 text-ink/70 text-sm">Active telegram_sessions</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Authentication — /api/v1/auth (§4.2)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت (§4.2)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/auth/register</td><td class="px-4 py-3 text-ink/70 text-sm">Create user</td><td class="px-4 py-3 font-mono text-xs text-ink/50">201 / 400</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/auth/login</td><td class="px-4 py-3 text-ink/70 text-sm">OAuth2 form; JWT + cookie</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200 / 401</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/auth/logout</td><td class="px-4 py-3 text-ink/70 text-sm">Clear cookie</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/auth/sync-cookie</td><td class="px-4 py-3 text-ink/70 text-sm">Bearer → cookie</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/auth/me</td><td class="px-4 py-3 text-ink/70 text-sm">Profile + business_type</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200 / 401</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Keywords — /api/v1/keywords (§4.3)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کلمات کلیدی (§4.3)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/keywords/</td><td class="px-4 py-3 text-ink/70 text-sm">Default + custom + final bundle</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/keywords/</td><td class="px-4 py-3 text-ink/70 text-sm">Add custom keyword</td><td class="px-4 py-3 font-mono text-xs text-ink/50">201 / 400</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">PUT</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/keywords/{id}</td><td class="px-4 py-3 text-ink/70 text-sm">Update keyword</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200 / 404</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/keywords/{id}</td><td class="px-4 py-3 text-ink/70 text-sm">Delete + Redis resync</td><td class="px-4 py-3 font-mono text-xs text-ink/50">204 / 404</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Engine — /api/v1/engine (§4.4)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">موتور (§4.4)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/engine/start</td><td class="px-4 py-3 text-ink/70 text-sm">Merge keywords, Redis, pub/sub</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200 / 400 / 403</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/engine/stop</td><td class="px-4 py-3 text-ink/70 text-sm">engine_active=false</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/engine/status</td><td class="px-4 py-3 text-ink/70 text-sm">Live flags + indicator</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/engine/pipeline</td><td class="px-4 py-3 text-ink/70 text-sm">Pipeline log from Redis</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Licenses — /api/v1/licenses (§4.5)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایسنس (§4.5)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/licenses/status</td><td class="px-4 py-3 text-ink/70 text-sm">is_valid, days_remaining</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/licenses/renew</td><td class="px-4 py-3 text-ink/70 text-sm">Admin renew {user_id, extra_days}</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Admin — /api/v1/admin (§4.6)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ادمین (§4.6)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/users</td><td class="px-4 py-3 text-ink/70 text-sm">All users (+ dashboard_password)</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/users</td><td class="px-4 py-3 text-ink/70 text-sm">Create tenant + license</td><td class="px-4 py-3 font-mono text-xs text-ink/50">201</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">PUT</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/users/{id}</td><td class="px-4 py-3 text-ink/70 text-sm">Partial update</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">PATCH</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/users/{id}/toggle-active</td><td class="px-4 py-3 text-ink/70 text-sm">Flip is_active</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/users/{id}/renew-license</td><td class="px-4 py-3 text-ink/70 text-sm">Renew days</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/users/{id}</td><td class="px-4 py-3 text-ink/70 text-sm">Delete non-admin</td><td class="px-4 py-3 font-mono text-xs text-ink/50">204</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">GET</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/admin/telegram-sessions</td><td class="px-4 py-3 text-ink/70 text-sm">Active sessions</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Telegram connection — /api/v1/telegram (§4.7)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اتصال تلگرام (§4.7)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[620px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Status</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/telegram/send-code</td><td class="px-4 py-3 text-ink/70 text-sm">phone_number → phone_code_hash</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-sage text-sm">POST</td><td class="px-4 py-3 font-mono text-xs text-ink/80">/api/v1/telegram/verify-code</td><td class="px-4 py-3 text-ink/70 text-sm">Upsert telegram_sessions</td><td class="px-4 py-3 font-mono text-xs text-ink/50">200</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Sample JSON</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه JSON</h3><div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-4 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="login-req">POST /api/v1/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=0912...&password=secret12</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('login-req', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div><div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-4 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="login-res">{
+  "access_token": "<jwt>",
+  "token_type": "bearer"
+}</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('login-res', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div><div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-4 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="engine-status">{
+  "engine_active": true,
+  "license_valid": true,
+  "keyword_count": 8,
+  "days_remaining": 22,
+  "license_expires_at": "2026-09-20T12:00:00+00:00",
+  "indicator": "listening"
+}</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('engine-status', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div><div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-4 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="keywords-get">{
+  "business_type": "real_estate",
+  "default_keywords": ["فروش آپارتمان", "رهن", "اجاره"],
+  "custom_keywords": [
+    {
+      "id": 12,
+      "word": "پیش‌فروش",
+      "type": "positive",
+      "weight": 1.0,
+      "created_at": "2026-08-29T10:00:00+00:00"
+    }
+  ],
+  "final_keywords": ["فروش آپارتمان", "رهن", "اجاره", "پیش‌فروش"]
+}</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('keywords-get', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Common HTTP codes (§4.9)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کدهای HTTP (§4.9)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[480px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Code</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Meaning</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معنی</span></th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">200 / 201 / 204</td><td class="px-4 py-3 text-ink/70">Success</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">400</td><td class="px-4 py-3 text-ink/70">Validation / business rule</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">401</td><td class="px-4 py-3 text-ink/70">Missing/invalid JWT or inactive user</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">403</td><td class="px-4 py-3 text-ink/70">Not admin or engine license/account failure</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">404</td><td class="px-4 py-3 text-ink/70">User or keyword not found</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">422</td><td class="px-4 py-3 text-ink/70">Pydantic validation</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">500</td><td class="px-4 py-3 text-ink/70">Telegram API misconfig (TELEGRAM_API_ID missing)</td></tr></tbody>
+  </table>
+</div>      </div>
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی"></div>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-6">Loaded by <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">core.config.Settings</code> from <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">.env</code> (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">extra="ignore"</code>). Derived: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">database_url</code> (asyncpg) and <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">resolved_redis_url</code>.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;">تنظیمات از .env توسط Pydantic Settings بارگذاری می‌شود.</p><h3 class="font-display text-lg mb-4 text-ink en-text">Environment variables (§5)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">متغیرهای محیط (§5)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[560px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Default</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Production guidance</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">راهنما</span></th></tr></thead><tbody class="bg-charcoal2 text-sm font-mono"><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">APP_ENV</td><td class="px-4 py-3 text-ink/70">development</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">production enables Secure cookie</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">LOG_LEVEL</td><td class="px-4 py-3 text-ink/70">INFO</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">INFO or WARNING</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">SECRET_KEY</td><td class="px-4 py-3 text-ink/70">changeme</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Long random secret; rotate on compromise</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">ALGORITHM</td><td class="px-4 py-3 text-ink/70">HS256</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Keep HS256 unless RS256/JWKS</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">ACCESS_TOKEN_EXPIRE_MINUTES</td><td class="px-4 py-3 text-ink/70">60</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">15–60 typical</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">POSTGRES_USER</td><td class="px-4 py-3 text-ink/70">telegram_listener</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Dedicated DB role</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">POSTGRES_PASSWORD</td><td class="px-4 py-3 text-ink/70">changeme</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Never commit</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">POSTGRES_DB</td><td class="px-4 py-3 text-ink/70">telegram_listener</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Dedicated database</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">POSTGRES_HOST</td><td class="px-4 py-3 text-ink/70">localhost</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Compose: postgres</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">POSTGRES_PORT</td><td class="px-4 py-3 text-ink/70">5432</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Host mapping 5433→5432 in Compose</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">REDIS_HOST</td><td class="px-4 py-3 text-ink/70">127.0.0.1</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Compose: redis</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">REDIS_PORT</td><td class="px-4 py-3 text-ink/70">6379</td><td class="px-4 py-3 text-ink/70 font-sans text-sm"></td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">REDIS_URL</td><td class="px-4 py-3 text-ink/70">derived</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Optional redis:// override</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">TELEGRAM_API_ID</td><td class="px-4 py-3 text-ink/70">unset</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">From my.telegram.org</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">TELEGRAM_API_HASH</td><td class="px-4 py-3 text-ink/70">unset</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Treat as secret</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">REDIS_QUEUE_NAME</td><td class="px-4 py-3 text-ink/70">queue:raw_messages</td><td class="px-4 py-3 text-ink/70 font-sans text-sm">Listener producer queue</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Sample .env</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه .env</h3><div class="bg-charcoal rounded-xl border border-ink/10 p-4 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="env-block">APP_ENV=development
+LOG_LEVEL=INFO
+SECRET_KEY=change-me-to-long-random-secret
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+POSTGRES_USER=telegram_listener
+POSTGRES_PASSWORD=changeme
+POSTGRES_DB=telegram_listener
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5433
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+TELEGRAM_API_ID=
+TELEGRAM_API_HASH=
+REDIS_QUEUE_NAME=queue:raw_messages</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('env-block', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div>      </div>
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+<h3 class="font-display text-lg mb-4 text-ink en-text">Local / host development (§6.1)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توسعه محلی (§6.1)</h3><div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-10 overflow-x-auto">
+  <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="local-dev">python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+docker compose up -d postgres redis
+alembic upgrade head
+python creat-admin.py
+uvicorn modules.admin_and_api.main:app --reload --host 127.0.0.1 --port 8000
+python -m modules.listener.app
+python -m modules.processor.worker</pre>
+  <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('local-dev', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Docker Compose services (§6.2)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">سرویس‌های Docker (§6.2)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[540px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Service</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Command / image</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">api</td><td class="px-4 py-3 font-mono text-xs text-ink/70">uvicorn modules.admin_and_api.main:app --host 0.0.0.0 --port 8000</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">listener</td><td class="px-4 py-3 font-mono text-xs text-ink/70">python -m modules.listener.app</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">processor</td><td class="px-4 py-3 font-mono text-xs text-ink/70">python -m modules.processor.worker</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">postgres</td><td class="px-4 py-3 font-mono text-xs text-ink/70">postgres:15-alpine + pg_isready healthcheck</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">redis</td><td class="px-4 py-3 font-mono text-xs text-ink/70">redis:7-alpine + PING healthcheck</td></tr></tbody>
+  </table>
+</div><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-8">Inside Compose set <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">POSTGRES_HOST=postgres</code> and <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">REDIS_HOST=redis</code>. Run <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">docker compose up -d --build</code> after <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">alembic upgrade head</code>.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-8" style="font-family:'El Messiri',sans-serif;">در Compose هاست postgres و redis را تنظیم کنید.</p><h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD target pipeline (§6.3)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">CI/CD هدف (§6.3)</h3><div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+  <pre class="mermaid">
+flowchart LR
+  P[Push / PR] --> L[Lint + pyright]
+  L --> T[Unit tests]
+  T --> M[alembic upgrade on CI Postgres]
+  M --> B[docker build]
+  B --> D[Deploy staging]
+  D --> G[Manual promote production]
+  </pre>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Backup (§6.5)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پشتیبان‌گیری (§6.5)</h3><ul class="space-y-2 max-w-2xl text-sm text-ink/75 en-text list-disc list-inside"><li>Postgres: pg_dump volume postgres_data</li><li>Redis: AOF/RDB volume redis_data (keywords/status rebuildable from SQL + presets)</li><li>telegram_sessions.session_string values are secrets — encrypt backups</li></ul><ul class="space-y-2 max-w-2xl text-sm text-ink/75 fa-text hidden list-disc list-inside" style="font-family:'El Messiri',sans-serif;"><li style="line-height:2;">Postgres: pg_dump روی volume</li><li style="line-height:2;">Redis: AOF/RDB (قابل بازسازی از SQL)</li><li style="line-height:2;">session_string را در پشتیبان رمز کنید</li></ul>      </div>
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; FAQ" data-title-fa="امنیت و سوالات"></div>
+<h3 class="font-display text-lg mb-4 text-ink en-text">Authentication &amp; authorization (§7.1)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت (§7.1)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[520px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Mechanism</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Detail</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-sm">Password</td><td class="px-4 py-3 text-ink/70 text-sm">passlib bcrypt → users.hashed_password</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-sm">JWT</td><td class="px-4 py-3 text-ink/70 text-sm">HS256; sub=user id; expiry from settings</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-sm">Cookie</td><td class="px-4 py-3 text-ink/70 text-sm">HttpOnly, SameSite=Lax; Secure when APP_ENV=production</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-sm">Admin</td><td class="px-4 py-3 text-ink/70 text-sm">User.is_admin → 403 if not operator</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-sm">Active user</td><td class="px-4 py-3 text-ink/70 text-sm">get_current_active_user → 401 if inactive</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-sm">Engine start</td><td class="px-4 py-3 text-ink/70 text-sm">Blocked if is_active false or subscription expired</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Encryption &amp; secrets (§7.2)</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">رمزنگاری و اسرار (§7.2)</h3><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-6">TLS at reverse proxy; session_string as TEXT — protect DB/backups; SECRET_KEY, TELEGRAM_API_HASH, DB password in env only; bind Redis or require AUTH in production.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;">TLS در پروکسی؛ session_string را محافظت کنید؛ Redis در production محدود شود.</p><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">CORS &amp; CSRF (§7.3)</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">CORS و CSRF (§7.3)</h3><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-6">Same-origin Jinja UI; fetch uses Bearer from localStorage. No CORS middleware — do not host SPA on another origin without explicit CORS. XSS can steal localStorage tokens.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;">UI هم‌مبدأ؛ Bearer در localStorage. CORS پیکربندی نشده.</p><h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Input validation (§7.4)</h3>
+<h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعتبارسنجی ورودی (§7.4)</h3><p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text mb-6">Pydantic v2 on JSON bodies; SQLAlchemy bound parameters; phone uniqueness checks; verify-code requires existing user_id.</p>
+<p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;">Pydantic v2؛ پارامترهای bound؛ یکتایی تلفن؛ verify-code نیاز به user_id.</p><h3 class="font-display text-lg mb-4 text-ink en-text">Error handling patterns (§7.6)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">الگوهای خطا (§7.6)</h3><div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+  <table class="w-full text-left border-collapse min-w-[480px]">
+<thead><tr class="bg-charcoal text-paper"><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Layer</th><th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Behavior</th></tr></thead><tbody class="bg-charcoal2 text-sm"><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">FastAPI</td><td class="px-4 py-3 text-ink/70 text-sm">HTTPException with Persian detail for product rules</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">DB session</td><td class="px-4 py-3 text-ink/70 text-sm">commit on success, rollback on exception</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Redis keyword write</td><td class="px-4 py-3 text-ink/70 text-sm">Verified round-trip in sync_user_keywords_payload</td></tr><tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Telegram notify</td><td class="px-4 py-3 text-ink/70 text-sm">Logged failure; task returns failed status</td></tr><tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Leads API</td><td class="px-4 py-3 text-ink/70 text-sm">NotImplementedError — must not be called in production UI</td></tr></tbody>
+  </table>
+</div><h3 class="font-display text-lg mb-4 text-ink en-text">Recommended follow-ups (§7.8)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیشنهادهای بعدی (§7.8)</h3><ul class="space-y-2 max-w-2xl text-sm text-ink/75 en-text list-disc list-inside mb-8"><li>Redis AUTH + network policy</li><li>Encrypt session_string at rest</li><li>Implement /api/v1/leads for dashboard table</li><li>CSRF tokens if cookie-only auth without Bearer</li><li>Automated tests and GitHub Actions (§6.3)</li></ul><h3 class="font-display text-lg mb-4 text-ink en-text">FAQ (§7.7 troubleshooting)</h3>
+<h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">سوالات متداول (§7.7)</h3><div id="faq-list" class="space-y-2"></div>      </div>
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — self-bot — MohammadTaha Hosseinzadeh · © 2026</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — self-bot — محمدطاها حسین‌زاده · © ۱۴۰۵</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۱ — مستندات self-bot';
+      if(tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 01 — self-bot Documentation';
+      if(tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',          titleFa: 'صفحه جلد',          icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',      titleFa: 'معرفی سیستم',        icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',titleFa: 'معماری و طراحی',     icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database Schema',      titleFa: 'طرح داده\u200cها',         icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API Reference',        titleFa: 'مرجع API',           icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',        titleFa: 'پیکربندی',           icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',  titleFa: 'استقرار و DevOps',   icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & FAQ',       titleFa: 'امنیت و سوالات',     icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  const dbSchema = [
+    { table: 'users', fields: [
+      ['id', 'INTEGER', 'PK, identity', 'Tenant primary key'],
+      ['telegram_id', 'BIGINT', 'UNIQUE, nullable', 'Telegram user id from get_me'],
+      ['username', 'VARCHAR(100)', 'nullable', 'Login id (often phone)'],
+      ['hashed_password', 'VARCHAR(255)', 'nullable', 'bcrypt hash'],
+      ['full_name', 'VARCHAR(100)', 'nullable', 'Display name'],
+      ['business_type', 'VARCHAR(100)', 'nullable', 'Preset pack key'],
+      ['is_active', 'BOOLEAN', 'NOT NULL, default true', 'Account enabled'],
+      ['is_admin', 'BOOLEAN', 'NOT NULL, default false', 'Operator flag'],
+      ['dashboard_password', 'VARCHAR(128)', 'nullable', 'Plain password for admin display'],
+      ['subscription_end', 'TIMESTAMPTZ', 'nullable', 'License expiry'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Created timestamp'],
+    ]},
+    { table: 'telegram_sessions', fields: [
+      ['id', 'INTEGER', 'PK', 'Session row id'],
+      ['user_id', 'INTEGER', 'FK users.id CASCADE', 'Owner tenant'],
+      ['phone_number', 'VARCHAR(20)', 'NOT NULL', 'Telegram phone'],
+      ['session_string', 'TEXT', 'NOT NULL', 'Telethon/Pyrogram session (secret)'],
+      ['is_active', 'BOOLEAN', 'NOT NULL, default true', 'Session usable'],
+      ['is_engine_active', 'BOOLEAN', 'NOT NULL, default false', 'Listener binds this account'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Created timestamp'],
+    ]},
+    { table: 'keywords', fields: [
+      ['id', 'INTEGER', 'PK', 'Keyword id'],
+      ['user_id', 'INTEGER', 'FK CASCADE, indexed', 'Owner tenant'],
+      ['word', 'VARCHAR(100)', 'NOT NULL', 'Custom phrase'],
+      ['type', 'ENUM', 'positive / negative', 'Keyword polarity'],
+      ['weight', 'FLOAT', 'default 1.0', 'Match weight'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Created timestamp'],
+    ]},
+    { table: 'sources', fields: [
+      ['id', 'INTEGER', 'PK', 'Source id'],
+      ['telegram_chat_id', 'BIGINT', 'UNIQUE, NOT NULL', 'Chat id'],
+      ['title', 'VARCHAR(255)', 'nullable', 'Group title'],
+      ['username', 'VARCHAR(100)', 'nullable', '@username'],
+      ['source_score', 'FLOAT', 'default 50', 'Source quality score'],
+      ['is_active', 'BOOLEAN', 'default true', 'Monitored flag'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Created timestamp'],
+    ]},
+    { table: 'persons', fields: [
+      ['id', 'INTEGER', 'PK', 'Person id'],
+      ['telegram_user_id', 'BIGINT', 'UNIQUE, NOT NULL', 'Sender id'],
+      ['username', 'VARCHAR(100)', 'nullable', '@username'],
+      ['first_name / last_name', 'VARCHAR(100)', 'nullable', 'Profile names'],
+      ['phone', 'VARCHAR(20)', 'nullable', 'Phone number'],
+      ['topic_profile', 'JSONB', 'NOT NULL default {}', 'Future ML profile'],
+      ['updated_at', 'TIMESTAMPTZ', 'server default now()', 'Last update'],
+    ]},
+    { table: 'messages', fields: [
+      ['id', 'INTEGER', 'PK', 'Message id'],
+      ['telegram_message_id', 'BIGINT', 'NOT NULL', 'Telegram message id'],
+      ['source_id', 'INTEGER', 'FK sources CASCADE', 'Chat reference'],
+      ['person_id', 'INTEGER', 'FK persons CASCADE', 'Author reference'],
+      ['raw_text', 'TEXT', 'NOT NULL', 'Message body'],
+      ['message_date', 'TIMESTAMPTZ', 'NOT NULL', 'Telegram date'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Ingest time'],
+    ]},
+    { table: 'leads', fields: [
+      ['id', 'INTEGER', 'PK', 'Lead id'],
+      ['user_id', 'INTEGER', 'FK CASCADE, indexed', 'Tenant owner'],
+      ['message_id', 'INTEGER', 'FK messages CASCADE', 'Source message'],
+      ['person_id', 'INTEGER', 'FK persons CASCADE', 'Author'],
+      ['intent_score', 'FLOAT', 'NOT NULL', 'Match score'],
+      ['lead_level', 'ENUM', 'low / warm / hot', 'Lead temperature'],
+      ['evidence_json', 'JSONB', 'NOT NULL', 'Keywords, chat metadata'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Created timestamp'],
+    ]},
+    { table: 'feedbacks', fields: [
+      ['id', 'INTEGER', 'PK', 'Feedback id'],
+      ['lead_id', 'INTEGER', 'FK leads CASCADE', 'Rated lead'],
+      ['user_id', 'INTEGER', 'FK users CASCADE', 'Rater tenant'],
+      ['rating', 'ENUM', 'relevant / irrelevant / not_sure', 'Quality rating'],
+      ['notes', 'TEXT', 'nullable', 'Optional comment'],
+      ['created_at', 'TIMESTAMPTZ', 'server default now()', 'Created timestamp'],
+    ]},
+    { table: 'Redis keys', fields: [
+      ['user:{id}:keywords', 'STRING JSON', 'Written on keyword sync', 'final/default/custom/negative keywords'],
+      ['user:{id}:status', 'STRING JSON', 'engine_active, license_valid', 'Engine control flags'],
+      ['user:{id}:pipeline_log', 'LIST JSON', 'Capped list', 'Engine pipeline steps'],
+      ['engine:control', 'PUBSUB', 'start|stop + user_id', 'Listener control channel'],
+      ['service:listener:heartbeat', 'STRING', 'Liveness', 'Listener health'],
+      ['service:processor:heartbeat', 'STRING', 'Liveness', 'Worker health'],
+      ['Celery broker', 'Redis DB', 'Task queues', 'Async message processing'],
+      ['queue:raw_messages', 'LIST', 'Optional via REDIS_QUEUE_NAME', 'Alternate ingest queue'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  const faqs = [
+    { qEn: 'Login returns 401', qFa: 'ورود 401 برمی\u200cگرداند', aEn: 'Wrong username (phone) or password. Check users.username and the bcrypt hash.', aFa: 'نام کاربری (تلفن) یا رمز اشتباه است. users.username و hash را بررسی کنید.' },
+    { qEn: '/ shows blank then login', qFa: 'صفحه / خالی است سپس لاگین', aEn: 'No access_token cookie. Login then call sync-cookie or use the admin gate flow.', aFa: 'کوکی access_token وجود ندارد. لاگین کنید سپس sync-cookie را فراخوانی کنید.' },
+    { qEn: 'Engine start returns 400', qFa: 'شروع موتور 400 می\u200cدهد', aEn: 'No telegram_sessions row for this user. Admin must verify-code against that user.', aFa: 'ردیف telegram_sessions برای این کاربر وجود ندارد. ادمین باید verify-code انجام دهد.' },
+    { qEn: 'Engine start returns 403 (license)', qFa: 'شروع موتور 403 (لایسنس)', aEn: 'subscription_end is null or in the past. Admin must renew the license.', aFa: 'subscription_end خالی یا گذشته است. ادمین باید لایسنس را تمدید کند.' },
+    { qEn: 'Dashboard shows red "stopped"', qFa: 'داشبورد قرمز «متوقف\u200cشده»', aEn: 'Engine not started. POST /api/v1/engine/start with a valid JWT.', aFa: 'موتور روشن نشده. POST /api/v1/engine/start با JWT معتبر.' },
+    { qEn: 'Dashboard shows yellow "license expired"', qFa: 'داشبورد زرد «لایسنس منقضی»', aEn: 'license_valid is false. Renew license then start the engine again.', aFa: 'license_valid نادرست است. لایسنس را تمدید کنید سپس موتور را دوباره start کنید.' },
+    { qEn: 'Listener exits immediately', qFa: 'Listener بلافاصله خارج می\u200cشود', aEn: 'No row with is_active AND is_engine_active. Start engine and restart listener.', aFa: 'ردیفی با is_active و is_engine_active وجود ندارد. موتور را start کنید و listener را ری‌استارت کنید.' },
+    { qEn: 'Celery ignores all messages', qFa: 'Celery همه پیام\u200cها را نادیده می\u200cگیرد', aEn: 'Redis status key missing. Start engine to write user:{id}:status.', aFa: 'کلید وضعیت Redis وجود ندارد. موتور را start کنید تا user:{id}:status نوشته شود.' },
+    { qEn: 'Alembic fails on host', qFa: 'Alembic روی host خطا می\u200cدهد', aEn: 'Port mismatch 5432 vs 5433. Match .env POSTGRES_PORT to Compose publish mapping.', aFa: 'عدم تطابق پورت 5432 و 5433. POSTGRES_PORT در .env را با Compose هماهنگ کنید.' },
+    { qEn: 'Redis HELLO / RESP3 errors on Windows', qFa: 'خطای Redis HELLO / RESP3 در ویندوز', aEn: 'redis-py 8 vs older Redis. Worker already forces RESP2 protocol.', aFa: 'redis-py 8 در برابر Redis قدیمی. worker از قبل پروتکل 2 را اجبار می\u200cکند.' },
+    { qEn: 'Sessions page empty', qFa: 'صفحه sessions خالی است', aEn: 'Only is_active=true sessions listed. Attach session and ensure is_active is set.', aFa: 'فقط سشن\u200cهای is_active=true نمایش داده می\u200cشوند. سشن را وصل کنید و is_active را بررسی کنید.' },
+    { qEn: 'Notification not delivered', qFa: 'اعلان ارسال نمی\u200cشود', aEn: 'Missing TELEGRAM_API_ID/HASH or invalid session_string. Check env and session row.', aFa: 'TELEGRAM_API_ID/HASH یا session_string نامعتبر. env و ردیف سشن را بررسی کنید.' },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — View-Aparat</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  .cover-display-title { direction: ltr; unicode-bidi: isolate; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 02 — View-Aparat Documentation</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Grade Specification</span>
+              <span class="fa-text hidden">مستندات فنی سطح تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: VIEW-APARAT-2026-100</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight cover-display-title" dir="ltr">
+              <span class="relative inline-block">
+                <span class="relative z-10">V</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v1</span>
+              </span>IEW-APARAT
+            </h1>
+            <p class="mt-3 font-mono text-xs sm:text-sm text-paper/45 uppercase tracking-[0.2em]">
+              <span class="en-text">Video Playback Performance Testing Suite</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مجموعه تست عملکرد پخش ویدیو</span>
+            </p>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">View-Aparat</span> — a desktop monolith that orchestrates concurrent Playwright Chromium workers to stress-test video playback on Aparat and YouTube, with persistent profiles, proxy rotation, bot-detection benchmarking, and resumable JSON reporting.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">View-Aparat</span> — یک اپلیکیشن دسکتاپ مونولیتیک که چندین Worker همزمان Playwright Chromium را برای تست فشار پخش ویدیو روی آپارات و یوتیوب هماهنگ می‌کند؛ همراه با پروفایل‌های ماندگار، چرخش پروکسی، بنچمارک تشخیص ربات و گزارش‌دهی JSON قابل‌ازسرگیری.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <a href="https://github.com/WhileTrue0087/View-Aparat.git" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-brands fa-github"></i>
+              <span class="en-text">Repository</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مخزن کد</span>
+              <span class="font-mono text-xs opacity-70 hidden sm:inline">WhileTrue0087/View-Aparat</span>
+            </a>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">Interface Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع رابط برنامه</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v1.0.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production draft</span></span>
+            <span>DEVELOPER <span class="text-paper font-semibold">MohammadTaha HosseinZadeh</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          The <strong class="text-ink">Video Playback Performance Testing Suite</strong> (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">View-Aparat</code>) is a <strong class="text-ink">desktop monolith</strong> written in Python. A CustomTkinter GUI orchestrates <strong class="text-ink">Playwright Chromium</strong> workers to stress-test video playback on <strong class="text-ink">Aparat</strong> and <strong class="text-ink">YouTube</strong> under concurrent, long-running load, simulating returning viewers via persistent browser profiles on disk. It is not a client–server web application — there is no HTTP API layer, no relational database, and persistence is entirely <strong class="text-ink">file-based</strong> (JSON reports, text proxy lists, Playwright user-data directories).
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          <strong class="text-ink">مجموعه تست عملکرد پخش ویدیو</strong> (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">View-Aparat</code>) یک <strong class="text-ink">اپلیکیشن دسکتاپ مونولیتیک</strong> نوشته‌شده با پایتون است. یک رابط گرافیکی CustomTkinter، Workerهای <strong class="text-ink">Playwright Chromium</strong> را برای تست فشار پخش ویدیو روی <strong class="text-ink">آپارات</strong> و <strong class="text-ink">یوتیوب</strong> تحت بار همزمان و طولانی‌مدت هماهنگ می‌کند و با استفاده از پروفایل‌های ماندگار مرورگر، بازدیدکنندگان بازگشتی را شبیه‌سازی می‌کند. این یک اپلیکیشن وب کلاینت-سرور نیست — هیچ لایه API از نوع HTTP و هیچ پایگاه‌داده رابطه‌ای وجود ندارد و ماندگاری داده کاملاً <strong class="text-ink">فایل‌محور</strong> است (گزارش‌های JSON، فهرست‌های متنی پروکسی، دایرکتوری‌های Playwright).
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Platform Modes</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">حالت‌های پلتفرم</p>
+            <p class="font-display text-2xl mt-1 text-rust">2</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Persistence</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">JSON</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Automation Engine</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">موتور اتوماسیون</p>
+            <p class="font-display text-2xl mt-1 text-rust">Playwright</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Database</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایگاه‌داده</p>
+            <p class="font-display text-2xl mt-1 text-rust">None</p>
+          </div>
+        </div>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Domain &amp; Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">دامنه و ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Primary interest</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دغدغه اصلی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">QA / Performance Engineer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Playback stability, KPI deltas, resume after failure</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایداری پخش، تغییرات KPI، ازسرگیری پس از خطا</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Automation Engineer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Reliable worker orchestration, extensible modes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هماهنگی قابل‌اعتماد Workerها، حالت‌های قابل‌توسعه</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">DevOps / Platform</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Repeatable installs, secret handling, headless CI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نصب تکرارپذیر، مدیریت اسرار، CI بدون نمایشگر</span></td></tr>
+              <tr class="bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Product / Compliance</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Terms-of-service compliance, ethical use</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تطابق با قوانین سرویس، استفاده اخلاقی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Scope -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Scope</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدوده</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+          <div>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-sage mb-2 en-text">In scope</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-sage mb-2 fa-text hidden" style="font-family:'El Messiri',sans-serif;">در محدوده</p>
+            <ul class="space-y-2 text-sm text-ink/70 en-text list-disc list-inside">
+              <li>Desktop GUI for multi-URL, multi-worker playback tests</li>
+              <li>Aparat mode — fixed watch windows, proxies, Drive sync</li>
+              <li>YouTube mode — % watch duration, stealth profiles, warm-up</li>
+              <li>Warm-up-only runs, proxy collector, bot detection tester</li>
+              <li>JSON reports with checkpoint / resume</li>
+            </ul>
+            <ul class="space-y-2 text-sm text-ink/70 fa-text hidden list-disc list-inside" style="font-family:'El Messiri',sans-serif;">
+              <li>رابط گرافیکی برای تست چند لینک و چند Worker</li>
+              <li>حالت آپارات — پنجره‌های ثابت تماشا، پروکسی، همگام‌سازی Drive</li>
+              <li>حالت یوتیوب — مدت تماشا درصدی، پروفایل مخفی‌کاری، گرم‌کردن</li>
+              <li>اجرای مستقل گرم‌کردن، جمع‌آوری پروکسی، تست تشخیص ربات</li>
+              <li>گزارش JSON با چک‌پوینت و ازسرگیری</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 mb-2 en-text">Out of scope</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 mb-2 fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده</p>
+            <ul class="space-y-2 text-sm text-ink/70 en-text list-disc list-inside">
+              <li>Hosted SaaS, REST/gRPC APIs, auth service</li>
+              <li>SQL/NoSQL database backend</li>
+              <li>Mobile clients</li>
+              <li>Automated CI/CD or container images (not in repo)</li>
+            </ul>
+            <ul class="space-y-2 text-sm text-ink/70 fa-text hidden list-disc list-inside" style="font-family:'El Messiri',sans-serif;">
+              <li>SaaS میزبانی‌شده، APIهای REST/gRPC، سرویس احراز هویت</li>
+              <li>پایگاه‌داده SQL/NoSQL</li>
+              <li>کلاینت موبایل</li>
+              <li>CI/CD خودکار یا ایمیج کانتینر (در مخزن نیست)</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">O-1</span><span class="text-ink/75 text-sm leading-relaxed en-text">Run <em>N</em> concurrent Playwright workers with isolated persistent profiles — worker <em>i</em> always maps to <code class="text-xs">session_data/worker_i</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">اجرای <em>N</em> Worker همزمان Playwright با پروفایل‌های ماندگار مجزا — Worker شماره <em>i</em> همیشه به <code class="text-xs">session_data/worker_i</code> نگاشت می‌شود.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">O-2</span><span class="text-ink/75 text-sm leading-relaxed en-text">Measure playback success per link over configurable time budgets — <code class="text-xs">successful_views</code>, KPI initial/final.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">اندازه‌گیری موفقیت پخش برای هر لینک در بازه‌های زمانی قابل‌تنظیم — <code class="text-xs">successful_views</code>، KPI اولیه/نهایی.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">O-3</span><span class="text-ink/75 text-sm leading-relaxed en-text">Survive network/proxy failures with resumable checkpoints — <code class="text-xs">run_status=interrupted</code>, <code class="text-xs">resumable=true</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تحمل خطاهای شبکه/پروکسی با چک‌پوینت‌های قابل‌ازسرگیری.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">O-4</span><span class="text-ink/75 text-sm leading-relaxed en-text">Support two platform modes with distinct proxy and timing semantics — <code class="text-xs">mode=aparat | youtube</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">پشتیبانی از دو حالت پلتفرم با معناشناسی متفاوت پروکسی و زمان‌بندی.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">O-5</span><span class="text-ink/75 text-sm leading-relaxed en-text">Provide operator visibility via live log and report aggregation — event log queue + <code class="text-xs">ReportWindow</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">دیدپذیری اپراتور از طریق لاگ زنده و تجمیع گزارش.</span></li>
+        </ol>
+
+        <!-- Tech stack -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Tech Stack &amp; System Requirements</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری‌ها و پیش‌نیازهای سیستم</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Technology</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Language</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Python 3.10+ (3.11/3.12 rec.)</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Core runtime</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">زمان اجرای اصلی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">UI</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">CustomTkinter + Tkinter</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Dark theme, Persian (Dana) font</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تم تیره، فونت فارسی Dana</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Browser automation</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Playwright (async_api)</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Chromium persistent contexts</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Context ماندگار کرومیوم</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Stealth</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">playwright-stealth</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Optional import</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">وارد‌سازی اختیاری</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Async / Threading</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">asyncio, threading</td><td class="px-4 py-3 text-ink/60"><span class="en-text">One event loop per background thread</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک event loop به ازای هر Thread پس‌زمینه</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">HTTP / Proxy</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">aiohttp, PySocks</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Proxy validation, SOCKS4/5 support</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعتبارسنجی پروکسی، پشتیبانی SOCKS4/5</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Cloud integration</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Google Drive API v3</td><td class="px-4 py-3 text-ink/60"><span class="en-text">OAuth Desktop → local_proxies.txt</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">OAuth دسکتاپ به local_proxies.txt</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Database</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">None</td><td class="px-4 py-3 text-ink/60"><span class="en-text">File-based JSON + text files</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فایل‌های JSON و متنی</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[420px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Category</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دسته</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Requirement</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نیازمندی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">OS</td><td class="px-4 py-3 text-ink/70">Windows 10+, macOS 12+, Linux (X11/Wayland)</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">RAM</td><td class="px-4 py-3 text-ink/70">2 GB base + ~300–800 MB per worker</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Disk</td><td class="px-4 py-3 text-ink/70">500 MB app + growing session_data/ and reports/</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Network</td><td class="px-4 py-3 text-ink/70">Outbound HTTPS for video targets, proxies, Google APIs</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Display</td><td class="px-4 py-3 text-ink/70">Required for GUI; headless only via code changes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          A <span class="text-ink font-medium">monolith</span> with layered modules: <code class="text-xs">main.py</code> (presentation) → <code class="text-xs">suite/*</code> (domain) → Playwright / file I/O. The UI is event-driven — a <code class="text-xs">queue.Queue</code> bridges background threads to the Tk main loop — with an async worker pool (<code class="text-xs">asyncio.create_task</code> per worker round) inside <code class="text-xs">run_manager()</code>. Persistence (reports, sessions, proxy lists) is entirely file-backed, with no ORM.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          یک <span class="text-ink font-medium">مونولیت</span> با ماژول‌های لایه‌ای: <code class="text-xs">main.py</code> (نمایش) → <code class="text-xs">suite/*</code> (دامنه) → Playwright / I/O فایل. رابط کاربری رویدادمحور است — یک <code class="text-xs">queue.Queue</code> بین Threadهای پس‌زمینه و حلقه اصلی Tk پل می‌زند — همراه با یک استخر Worker ناهمزمان (<code class="text-xs">asyncio.create_task</code> برای هر دور Worker) داخل <code class="text-xs">run_manager()</code>. ماندگاری داده (گزارش‌ها، نشست‌ها، فهرست‌های پروکسی) کاملاً فایل‌محور است، بدون ORM.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح‌بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart TB
+    subgraph Presentation["Presentation Layer"]
+        GUI["main.py — CustomTkinter App"]
+        RW["ReportWindow"]
+        WW["WarmupSitesWindow"]
+        BTW["BotTestResultWindow"]
+    end
+    subgraph Orchestration["Orchestration Layer"]
+        RM["suite.manager.run_manager"]
+        WR["suite.warmup_runner"]
+        BTR["suite.bot_test_runner"]
+        NAV["RunNavigation"]
+    end
+    subgraph Domain["Domain Services"]
+        REP["suite.reports"]
+        RES["suite.run_resume"]
+        SES["suite.session_management"]
+        YT["suite.youtube_browser"]
+        BW["suite.browser_warmup"]
+        PA["suite.proxy_assign"]
+        RC["suite.recaptcha"]
+        BT["suite.bot_test"]
+    end
+    subgraph Integrations["External Integrations"]
+        PW["Playwright Chromium"]
+        GD["Google Drive API"]
+        PS["Proxy sources"]
+        BS["bot.sannysoft.com"]
+        VID["Aparat / YouTube"]
+    end
+    subgraph Persistence["File Persistence"]
+        SD["session_data/worker_N"]
+        RP["reports/*.json"]
+        LP["local_proxies.txt"]
+        LIVE["live_proxies.txt"]
+        WS["warmup_sites.json"]
+    end
+    GUI --> RM
+    GUI --> WR
+    GUI --> BTR
+    GUI <-->|"Queue: logs, status"| NAV
+    RM --> SES
+    RM --> REP
+    RM --> RES
+    RM --> YT
+    RM --> BW
+    RM --> PA
+    RM --> RC
+    RM --> PW
+    RM --> GD
+    BTR --> BT
+    BTR --> PW
+    BTR --> BS
+    WR --> BW
+    WR --> PW
+    SES --> SD
+    REP --> RP
+    BW --> WS
+    RM --> VID
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Runtime Sequence — Main Test Run</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توالی اجرا — تست اصلی</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    actor Op as Operator
+    participant UI as main.py (UI Thread)
+    participant Q as queue.Queue
+    participant T as Background Thread
+    participant M as run_manager()
+    participant W as Playwright Workers
+    participant F as File System
+
+    Op->>UI: Start Test (RunConfig)
+    UI->>T: spawn daemon thread
+    T->>M: asyncio.run(run_manager)
+    M->>F: ensure_sessions(session_data)
+    M->>F: optional proxy sync / collect
+    loop Each link slot / round
+        M->>W: create_task(worker_view) x N
+        W->>W: navigate, play, monitor
+        W-->>M: IterationResult
+        M->>F: write_report_atomic(reports/)
+        M->>Q: log + LinkStatusSnapshot
+    end
+    Q->>UI: after(80ms) pump
+    UI->>Op: progress bar + event log
+    Op->>UI: Stop
+    UI->>M: RunNavigation.request_stop()
+    M->>F: flush interrupted checkpoint
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Threading &amp; Async Model</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدل Thread و Async</h3>
+        <div class="relative mb-10">
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed">Main Thread — Tkinter / CustomTkinter
+  - App UI, _schedule_ui_pump() every 80 ms
+  - Consumes _log_queue, _status_queue
+        |  RunNavigation (threading.Event / Lock)
+        v
+Daemon Background Threads (one active run at a time)
+  - runner | standalone-warmup | youtube-bot-test | proxy-collector-only
+  - asyncio.run(...) — single event loop per thread
+        |
+   run_manager -- create_task(_proxy_sync_loop)    [Aparat only]
+             |-- create_task(_link_status_ticker)   [1 Hz]
+             `-- gather(_run_worker_view_attempt x concurrency)</pre>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Primitive</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پرایمیتیو</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Location</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محل</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Purpose</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">threading.Event</td><td class="px-4 py-3 font-mono text-xs text-ink/70">RunNavigation.user_stop</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Cooperative stop from UI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توقف مشارکتی از UI</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">threading.Lock</td><td class="px-4 py-3 font-mono text-xs text-ink/70">RunNavigation._jump_to_index</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Manual prev/next link jump</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پرش دستی لینک قبل/بعد</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">asyncio.Lock</td><td class="px-4 py-3 font-mono text-xs text-ink/70">LinkRunTracker._kpi_lock</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Serialize KPI capture</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سریال‌سازی ثبت KPI</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">queue.Queue</td><td class="px-4 py-3 font-mono text-xs text-ink/70">main.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Thread-safe log and status delivery</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تحویل ایمن لاگ و وضعیت</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Mode Comparison — Aparat vs YouTube</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مقایسه حالت‌ها — آپارات و یوتیوب</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Dimension</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Aparat</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">YouTube</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Proxy file</td><td class="px-4 py-3 font-mono text-xs text-ink/70">local_proxies.txt</td><td class="px-4 py-3 font-mono text-xs text-ink/70">live_proxies.txt</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Proxy source</td><td class="px-4 py-3 text-ink/70 text-xs">Google Drive (optional)</td><td class="px-4 py-3 text-ink/70 text-xs">proxy_collector.py free lists</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Assignment</td><td class="px-4 py-3 text-ink/70 text-xs">Round-robin + offset</td><td class="px-4 py-3 text-ink/70 text-xs">Random per worker</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Watch timing</td><td class="px-4 py-3 text-ink/70 text-xs">Fixed windows</td><td class="px-4 py-3 text-ink/70 text-xs">Random % of duration</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Browser profile</td><td class="px-4 py-3 text-ink/70 text-xs">Default Chromium</td><td class="px-4 py-3 text-ink/70 text-xs">YoutubeBrowserProfile (UA, WebGL)</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Warm-up</td><td class="px-4 py-3 text-ink/70 text-xs">None</td><td class="px-4 py-3 text-ink/70 text-xs">Optional 3 sites × ~120s</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">reCAPTCHA</td><td class="px-4 py-3 text-ink/70 text-xs">No</td><td class="px-4 py-3 text-ink/70 text-xs">Checkbox auto-click</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Quality</td><td class="px-4 py-3 text-ink/70 text-xs">Force 144p</td><td class="px-4 py-3 text-ink/70 text-xs">N/A</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory Structure</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار دایرکتوری</h3>
+        <div class="relative mb-4">
+          <button onclick="copyBlock('dir-structure', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="dir-structure">View-Aparat/
+├── main.py                    # GUI entry point
+├── requirements.txt
+├── proxy_collector.py         # Fetch + validate proxies (YouTube)
+├── proxy_downloader.py        # Drive OAuth sync (Aparat)
+├── client_secrets.json        # Google OAuth (local secret)
+├── token.json                 # OAuth token store (local secret)
+├── local_proxies.txt
+├── live_proxies.txt
+├── warmup_sites.json
+├── fonts/Dana-Black.ttf
+├── session_data/               [runtime] worker_1..N
+├── reports/                    [runtime] run_*.json, bot_test_*.json
+└── suite/
+    ├── manager.py              # Async run orchestrator
+    ├── reports.py              # Report I/O, LinkRunTracker
+    ├── run_resume.py           # Checkpoint / resume logic
+    ├── session_management.py   # worker_N provisioning
+    ├── youtube_browser.py      # Fingerprint + watch behavior
+    ├── browser_warmup.py       # Pre-view warm-up
+    ├── proxy_assign.py         # YouTube random proxy assignment
+    ├── recaptcha.py            # reCAPTCHA checkbox handler
+    ├── bot_test.py             # bot.sannysoft.com scraper
+    ├── bot_test_runner.py      # Bot test orchestration
+    └── report_window.py        # Reports viewer UI</code></pre>
+        </div>
+      </div>
+
+      <!-- ========== 003 DATABASE & DATA MODELING ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="پایگاه‌داده و مدل‌سازی داده"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          There is <strong class="text-ink">no relational database</strong>. All durable state is stored as JSON run/bot-test reports, Chromium user-data directories per worker, plain-text proxy lists, and a user-editable warm-up catalog. Relationships shown below are <strong class="text-ink">logical</strong> — embedded JSON and directory naming, not SQL foreign keys.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          هیچ <strong class="text-ink">پایگاه‌داده رابطه‌ای</strong> وجود ندارد. تمام وضعیت پایدار به‌صورت گزارش‌های JSON اجرا/تست ربات، دایرکتوری‌های Chromium برای هر Worker، فهرست‌های متنی پروکسی و کاتالوگ گرم‌کردن قابل‌ویرایش ذخیره می‌شود. روابط زیر <strong class="text-ink">منطقی</strong> هستند — JSON تعبیه‌شده و نام‌گذاری دایرکتوری، نه کلید خارجی SQL.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Entity-Relationship Overview</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمای منطقی روابط موجودیت‌ها</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+erDiagram
+    RUN_REPORT ||--o{ RUN_LINK : contains
+    RUN_REPORT ||--o| CHECKPOINT : has
+    RUN_REPORT ||--|| RUN_CONFIG_SNAPSHOT : embeds
+    CHECKPOINT ||--o{ LINK_ENTRY : contains
+    WORKER_PROFILE ||--o{ ITERATION_RESULT : produces
+    RUN_REPORT {
+        string run_id PK
+        string run_status
+        string stop_reason
+        boolean resumable
+        datetime started_at
+        datetime ended_at
+    }
+    RUN_LINK {
+        string url
+        int successful_views
+        int kpi_initial
+        int kpi_final
+    }
+    LINK_ENTRY {
+        int link_index
+        int attempts
+        int rounds
+        float time_on_link_seconds
+    }
+    WORKER_PROFILE {
+        string path PK
+        int worker_id
+    }
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Data Flow — Report Write Path</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیر جریان داده — نوشتن گزارش</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart LR
+    A[Worker round completes] --> B[LinkRunTracker.record_round]
+    B --> C[build_checkpoint]
+    C --> D[build_report_payload]
+    D --> E[write_report_atomic]
+    E --> F["reports/run_*.json"]
+    F --> G[ReportWindow / aggregate_global_stats]
+    E --> H{Resume eligible?}
+    H -->|yes| I[find_resumable_run on next start]
+          </pre>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <h3 class="font-display text-lg text-ink en-text">Schema Reference</h3>
+          <h3 class="font-display text-lg text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع طرح داده</h3>
+          <div id="db-filters" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Field</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Type</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Constraints</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Description</th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2 text-sm"></tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Session Profile Layout</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">آرایش پروفایل نشست</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Worker <em>i</em> always uses <code class="text-xs">session_data/worker_i</code> across all runs and modes. Directories are created if missing, never deleted by the application. Increasing concurrency only creates new <code class="text-xs">worker_{N+1}</code> folders.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">Worker شماره <em>i</em> همیشه از <code class="text-xs">session_data/worker_i</code> در تمام اجراها و حالت‌ها استفاده می‌کند. دایرکتوری‌ها در صورت نبود ساخته می‌شوند و هرگز توسط اپلیکیشن حذف نمی‌شوند. افزایش همزمانی فقط پوشه‌های <code class="text-xs">worker_{N+1}</code> جدید می‌سازد.</p>
+      </div>
+
+      <!-- ========== 004 API / INTERFACE REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API و رابط برنامه"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          This application <strong class="text-ink">does not expose HTTP REST endpoints</strong>. The interfaces below define how operators and modules interact with the system: the GUI entry point, the core <code class="text-xs">run_manager()</code> orchestrator, the resume interface, standalone tool interfaces, and the external service contracts it consumes.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          این اپلیکیشن <strong class="text-ink">هیچ Endpoint از نوع HTTP REST</strong> ارائه نمی‌دهد. رابط‌های زیر نحوه تعامل اپراتورها و ماژول‌ها با سیستم را تعریف می‌کنند: نقطه ورود GUI، هماهنگ‌کننده اصلی <code class="text-xs">run_manager()</code>، رابط ازسرگیری، رابط‌های ابزار مستقل و قراردادهای سرویس خارجی مصرف‌شده.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Application Entry Points</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقاط ورود اپلیکیشن</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Entry</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Command / trigger</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Returns</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GUI main</td><td class="px-4 py-3 font-mono text-xs text-ink/70">python main.py</td><td class="px-4 py-3 text-ink/70 text-xs">Blocks until window closed</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Proxy collector</td><td class="px-4 py-3 font-mono text-xs text-ink/70">python proxy_collector.py</td><td class="px-4 py-3 text-ink/70 text-xs">30 min interval loop</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Proxy downloader</td><td class="px-4 py-3 font-mono text-xs text-ink/70">python proxy_downloader.py</td><td class="px-4 py-3 text-ink/70 text-xs">30 min Drive sync loop</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Core Module API — run_manager()</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">API ماژول اصلی — run_manager()</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('run-manager-sig', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="run-manager-sig">async def run_manager(
+    cfg: RunConfig,
+    *,
+    log_cb: Callable[[str], None],
+    nav: Optional[RunNavigation] = None,
+    status_cb: Optional[LinkStatusCb] = None,
+    report_cb: Optional[Callable[[], None]] = None,
+) -> None:
+    ...</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Resume Interface</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط ازسرگیری</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Function</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Signature</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Behavior</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">find_resumable_run</td><td class="px-4 py-3 font-mono text-xs text-ink/70">(reports_root) → Optional[tuple]</td><td class="px-4 py-3 text-ink/70 text-xs">Newest run_*.json with status running/interrupted</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">resume_state_from_report</td><td class="px-4 py-3 font-mono text-xs text-ink/70">(report, path) → RunResumeState</td><td class="px-4 py-3 text-ink/70 text-xs">Reconstruct frozen state</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">abandon_run</td><td class="px-4 py-3 font-mono text-xs text-ink/70">(report_path) → None</td><td class="px-4 py-3 text-ink/70 text-xs">Sets abandoned, resumable=false</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust text-xs">remaining_run_minutes</td><td class="px-4 py-3 font-mono text-xs text-ink/70">(started_at_iso, total) → float</td><td class="px-4 py-3 text-ink/70 text-xs">Budget left (min 0.5)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">External Service Contracts</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">قراردادهای سرویس خارجی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[620px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Service</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Protocol</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Auth</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Response</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">Google Drive API v3</td><td class="px-4 py-3 text-ink/70 text-xs">HTTPS REST</td><td class="px-4 py-3 text-ink/70 text-xs">OAuth 2.0 Desktop</td><td class="px-4 py-3 text-ink/70 text-xs">Proxy text file bytes</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">ProxyScrape</td><td class="px-4 py-3 text-ink/70 text-xs">HTTPS GET</td><td class="px-4 py-3 text-ink/70 text-xs">None</td><td class="px-4 py-3 text-ink/70 text-xs">Plain-text proxy list</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">GeoNode</td><td class="px-4 py-3 text-ink/70 text-xs">HTTPS GET</td><td class="px-4 py-3 text-ink/70 text-xs">None</td><td class="px-4 py-3 text-ink/70 text-xs">Paginated JSON</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">Proxy validation</td><td class="px-4 py-3 text-ink/70 text-xs">HTTPS via proxy</td><td class="px-4 py-3 text-ink/70 text-xs">None</td><td class="px-4 py-3 text-ink/70 text-xs">generate_204 → HTTP 204</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">bot.sannysoft.com</td><td class="px-4 py-3 text-ink/70 text-xs">HTTPS GET</td><td class="px-4 py-3 text-ink/70 text-xs">None</td><td class="px-4 py-3 text-ink/70 text-xs">HTML tables (scraped)</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust text-xs">Aparat / YouTube</td><td class="px-4 py-3 text-ink/70 text-xs">HTTPS</td><td class="px-4 py-3 text-ink/70 text-xs">Browser session</td><td class="px-4 py-3 text-ink/70 text-xs">DOM / player APIs</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Sample Report JSON (truncated)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه گزارش JSON (خلاصه‌شده)</h3>
+        <div class="relative">
+          <button onclick="copyBlock('sample-report', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="sample-report">{
+  "run_id": "20260902_095530",
+  "run_status": "interrupted",
+  "resumable": true,
+  "stop_reason": "network_disconnect",
+  "run_links": [
+    {
+      "url": "https://www.aparat.com/v/abc123",
+      "executed_in_run": true,
+      "kpi_initial": 489,
+      "kpi_final": 494,
+      "successful_views": 5
+    }
+  ],
+  "checkpoint": { "url_index": 1, "proxy_round_offset": 7 },
+  "run_config": { "mode": "aparat", "concurrency": 4, "use_proxy": true }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION & ENVIRONMENT ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی و محیط"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          Configuration comes from <strong class="text-ink">local files</strong> and GUI state — there is no automatic <code class="text-xs">.env</code> loading. Operators may wrap launches with environment variables for portability across environments.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          پیکربندی از <strong class="text-ink">فایل‌های محلی</strong> و وضعیت GUI می‌آید — هیچ بارگذاری خودکار <code class="text-xs">.env</code> وجود ندارد. اپراتورها می‌توانند برای قابلیت‌جابجایی، اجرا را با متغیرهای محیطی بپوشانند.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">File-Based Configuration</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیکربندی فایل‌محور</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[520px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">File</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Secret</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Description</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">client_secrets.json</td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">YES</span></td><td class="px-4 py-3 text-ink/70 text-xs">Google OAuth Desktop client</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">token.json</td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">YES</span></td><td class="px-4 py-3 text-ink/70 text-xs">Cached OAuth credentials</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">local_proxies.txt</td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">NO</span></td><td class="px-4 py-3 text-ink/70 text-xs">Proxy list from Drive (Aparat)</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">live_proxies.txt</td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">NO</span></td><td class="px-4 py-3 text-ink/70 text-xs">Validated free proxies (YouTube)</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust text-xs">warmup_sites.json</td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">NO</span></td><td class="px-4 py-3 text-ink/70 text-xs">Warm-up site pool</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Recommended Environment Variables</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">متغیرهای محیطی پیشنهادی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('env-template', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="env-template"># Paths
+SESSIONS_ROOT=/var/lib/view-aparat/session_data
+REPORTS_ROOT=/var/lib/view-aparat/reports
+GOOGLE_CLIENT_SECRETS=/run/secrets/google/client_secrets.json
+GOOGLE_OAUTH_TOKEN=/var/lib/view-aparat/token.json
+APARAT_PROXY_FILE=/var/lib/view-aparat/local_proxies.txt
+YOUTUBE_LIVE_PROXIES=/var/lib/view-aparat/live_proxies.txt
+WARMUP_SITES=/etc/view-aparat/warmup_sites.json
+
+# Tuning
+PROXY_SYNC_INTERVAL_SEC=1800
+PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Hardcoded Runtime Constants</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثابت‌های زمان اجرا</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Constant</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Value</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Module</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">PROXY_SYNC_INTERVAL_SECONDS</td><td class="px-4 py-3 text-ink/70 text-xs">1800 (30 min)</td><td class="px-4 py-3 text-ink/60 text-xs">manager.py</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">MAX_PROXY_FAILOVER_ATTEMPTS</td><td class="px-4 py-3 text-ink/70 text-xs">30</td><td class="px-4 py-3 text-ink/60 text-xs">manager.py</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">WARMUP_TOTAL_SECONDS</td><td class="px-4 py-3 text-ink/70 text-xs">120</td><td class="px-4 py-3 text-ink/60 text-xs">browser_warmup.py</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">CONCURRENCY_LIMIT</td><td class="px-4 py-3 text-ink/70 text-xs">50</td><td class="px-4 py-3 text-ink/60 text-xs">proxy_collector.py</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust text-xs">UI pump interval</td><td class="px-4 py-3 text-ink/70 text-xs">80 ms</td><td class="px-4 py-3 text-ink/60 text-xs">main.py</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT & DEVOPS ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          Deployment today is <strong class="text-ink">manual</strong>: clone the repo, create a venv, install dependencies, install Chromium, and run <code class="text-xs">python main.py</code>. No Dockerfile, CI, or packaged installer exists in the repository yet — the patterns below are <strong class="text-ink">recommended, forward-looking</strong> conventions.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          استقرار امروز <strong class="text-ink">دستی</strong> است: کلون مخزن، ساخت venv، نصب وابستگی‌ها، نصب Chromium و اجرای <code class="text-xs">python main.py</code>. هنوز Dockerfile، CI یا نصب‌کننده بسته‌بندی‌شده در مخزن وجود ندارد — الگوهای زیر پیشنهادی و رو به آینده هستند.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Local Build &amp; Run</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساخت و اجرای محلی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('install-cmd', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="install-cmd">git clone https://github.com/WhileTrue0087/View-Aparat.git
+cd View-Aparat
+
+python -m venv .venv
+source .venv/bin/activate          # Linux/macOS
+# .venv\Scripts\activate             # Windows
+
+pip install -r requirements.txt
+playwright install chromium
+playwright install-deps chromium   # Linux only
+
+python main.py</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Recommended Dockerfile</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Dockerfile پیشنهادی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('dockerfile', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="dockerfile">FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV SESSIONS_ROOT=/data/session_data
+ENV REPORTS_ROOT=/data/reports
+RUN mkdir -p /data/session_data /data/reports
+# GUI requires X11 forwarding or xvfb for headless experiments
+CMD ["python", "main.py"]</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Recommended GitHub Actions CI</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">CI پیشنهادی GitHub Actions</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('ci-yaml', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="ci-yaml">name: CI
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps chromium
+      - run: python -m compileall main.py suite proxy_collector.py proxy_downloader.py
+      - run: python -c "from suite.manager import RunConfig, run_manager; print('OK')"</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD Workflow (Target State)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">جریان CI/CD (وضعیت هدف)</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart LR
+    A[Push to main] --> B[GitHub Actions]
+    B --> C[compileall + import smoke]
+    C --> D{Branch?}
+    D -->|main| E[Build Docker image]
+    E --> F[Push to registry]
+    F --> G[Optional: scheduled proxy job]
+    D -->|PR| H[Require review + green CI]
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-4 mb-4 text-ink en-text">Server Setup Checklist</h3>
+        <h3 class="font-display text-lg mt-4 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چک‌لیست راه‌اندازی سرور</h3>
+        <ol class="space-y-2 max-w-2xl en-text">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">1.</span>Provision a VM with display or Xvfb for GUI, or refactor to a CLI entry for headless.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">2.</span>Install Python 3.12 + Chromium system deps (playwright install-deps).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">3.</span>Mount persistent volumes for session_data/, reports/, secrets.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">4.</span>Restrict outbound network to required domains.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">5.</span>Store client_secrets.json / token.json on an encrypted volume (permissions 600).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">6.</span>Schedule proxy_collector.py or proxy_downloader.py via cron/systemd timer.</li>
+        </ol>
+        <ol class="space-y-2 max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۱.</span>تهیه یک VM با نمایشگر یا Xvfb برای GUI، یا بازطراحی برای اجرای بدون نمایشگر.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۲.</span>نصب Python 3.12 و وابستگی‌های سیستمی Chromium.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۳.</span>مانت کردن Volumeهای ماندگار برای session_data/، reports/ و اسرار.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۴.</span>محدود کردن شبکه خروجی به دامنه‌های ضروری.</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۵.</span>نگهداری client_secrets.json / token.json روی Volume رمزنگاری‌شده (مجوز 600).</li>
+          <li class="flex gap-3 text-sm text-ink/70"><span class="font-mono text-rust font-bold shrink-0">۶.</span>زمان‌بندی proxy_collector.py یا proxy_downloader.py با cron/systemd.</li>
+        </ol>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; Error Handling" data-title-fa="امنیت و مدیریت خطا"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          There is <strong class="text-ink">no RBAC, JWT, or session middleware</strong> — this is a single-operator desktop app. Physical access to the machine equals full access. Google Drive access uses OAuth 2.0 Desktop with a read-only scope; video-platform sessions are stored as browser cookies inside <code class="text-xs">session_data/</code> and should be treated as credentials.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          هیچ <strong class="text-ink">RBAC، JWT یا میان‌افزار نشست</strong> وجود ندارد — این یک اپلیکیشن دسکتاپ تک‌اپراتوره است. دسترسی فیزیکی به دستگاه معادل دسترسی کامل است. دسترسی Google Drive از OAuth 2.0 Desktop با اسکوپ فقط-خواندنی استفاده می‌کند؛ نشست‌های پلتفرم ویدیو به‌صورت کوکی مرورگر در <code class="text-xs">session_data/</code> ذخیره می‌شوند و باید مانند اعتبارنامه با آن‌ها رفتار شود.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Security Gaps &amp; Hardening Recommendations</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">شکاف‌های امنیتی و توصیه‌های تقویتی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Risk</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ریسک</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Severity</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شدت</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Recommendation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توصیه</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80 text-xs"><span class="en-text">Secrets in repo (client_secrets.json, token.json)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اسرار در مخزن (client_secrets.json، token.json)</span></td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">HIGH</span></td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Add to .gitignore; rotate credentials; use a secret manager</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">افزودن به .gitignore؛ چرخش اعتبارنامه؛ استفاده از secret manager</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80 text-xs"><span class="en-text">Free proxies are untrusted</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پروکسی‌های رایگان نامعتمد</span></td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">HIGH</span></td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Use a dedicated proxy provider; segregate network</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استفاده از ارائه‌دهنده اختصاصی پروکسی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80 text-xs"><span class="en-text">playwright-stealth evasion</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دورزدن با playwright-stealth</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Document ToS constraints; use only on owned test assets</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستندسازی محدودیت‌های ToS</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80 text-xs"><span class="en-text">Persistent profiles contain auth cookies</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پروفایل‌های ماندگار حاوی کوکی احراز هویت</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Encrypt disk; restrict directory ACLs</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رمزنگاری دیسک؛ محدود کردن ACL</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/80 text-xs"><span class="en-text">reCAPTCHA bypass (checkbox only)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دورزدن reCAPTCHA (فقط چک‌باکس)</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">May violate target ToS — scope testing carefully</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ممکن است ناقض ToS باشد — با احتیاط استفاده شود</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Stop Reasons</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">دلایل توقف</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Code</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Typical cause</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دلیل رایج</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">stopped_by_user</td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">UI Stop clicked</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دکمه توقف کلیک شده</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">time_limit_reached</td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Total budget exhausted</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اتمام بودجه زمانی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">network_disconnect</td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Proxy / network failure</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خطای پروکسی یا شبکه</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust text-xs">crashed</td><td class="px-4 py-3 text-ink/70 text-xs"><span class="en-text">Unhandled exception</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استثنای مدیریت‌نشده</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — View-Aparat — Developer: MohammadTaha HosseinZadeh · © 2026 All rights reserved.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — View-Aparat — توسعه‌دهنده: محمدطاها حسین‌زاده · © ۱۴۰۵ تمامی حقوق محفوظ است.</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۲ — مستندات View-Aparat';
+      if (tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 02 — View-Aparat Documentation';
+      if (tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',                titleFa: 'صفحه جلد',                 icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',            titleFa: 'معرفی سیستم',               icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',      titleFa: 'معماری و طراحی',            icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database & Data Modeling',   titleFa: 'پایگاه‌داده و مدل‌سازی',      icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API / Interface Reference',  titleFa: 'مرجع API و رابط',            icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',              titleFa: 'پیکربندی',                  icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',        titleFa: 'استقرار و DevOps',           icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & Error Handling',  titleFa: 'امنیت و مدیریت خطا',         icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'run_*.json (top-level)', fields: [
+      ['run_id', 'string', "Format YYYYMMDD_HHMMSS", 'Unique run identifier'],
+      ['run_status', 'enum', 'running | completed | interrupted | abandoned', 'Current lifecycle state'],
+      ['started_at / ended_at', 'ISO-8601', 'ended_at null while running', 'Run timestamps'],
+      ['total_attempts', 'integer', '≥ 0', 'Cumulative worker iterations'],
+      ['resumable', 'boolean', 'false after abandon/complete', 'Whether UI may resume'],
+      ['stop_reason', 'enum', 'See Chapter 007', 'Machine-readable stop cause'],
+      ['run_links', 'array', 'See run_links[]', 'Per-URL summary rows'],
+      ['checkpoint', 'object', 'Present when resumable=true', 'Resumable state blob'],
+      ['run_config', 'object', 'Immutable snapshot', 'Config used for this run'],
+    ]},
+    { table: 'run_links[]', fields: [
+      ['url', 'string', 'Required', 'Video URL'],
+      ['executed_in_run', 'boolean', '—', 'Link was reached'],
+      ['kpi_initial / kpi_final', 'integer | null', 'Platform-specific scrape', 'View count at start/end'],
+      ['successful_views', 'integer', '≥ 0', 'App-counted successful plays'],
+    ]},
+    { table: 'checkpoint (object)', fields: [
+      ['url_index', 'integer', '≥ 0', 'Active 0-based link index'],
+      ['current_url', 'string', '—', 'URL at checkpoint'],
+      ['link_rotations', 'integer', '≥ 0', 'Number of link rotations'],
+      ['proxy_round_offset', 'integer', '≥ 0 (Aparat only)', 'Round-robin offset'],
+      ['link_entries', 'array', 'See link_entries[]', 'Full LinkRunTracker state'],
+      ['saved_at', 'ISO-8601', '—', 'Checkpoint timestamp'],
+    ]},
+    { table: 'run_config (snapshot)', fields: [
+      ['urls', 'string[]', 'Required', 'Ordered video URLs'],
+      ['concurrency', 'integer', 'Required', 'Worker count'],
+      ['mode', 'enum', 'aparat | youtube', 'Platform mode'],
+      ['use_proxy', 'boolean', 'default false', 'Aparat proxy enabled'],
+      ['youtube_watch_pct_min / max', 'float', 'default 30.0 / 70.0', 'YouTube watch %'],
+      ['youtube_warmup_enabled', 'boolean', 'default true', 'Pre-view warm-up'],
+    ]},
+    { table: 'bot_test_*.json', fields: [
+      ['test_type', 'string', "Always youtube_bot_detection", '—'],
+      ['duration_seconds', 'float', '—', 'Elapsed time'],
+      ['workers[]', 'array', 'Per-worker scrape results', '—'],
+      ['aggregate', 'object', 'Summary counts', 'Verdict tally'],
+    ]},
+    { table: 'proxy lists (local_proxies.txt / live_proxies.txt)', fields: [
+      ['line format', 'string', 'host:port | user:pass@host:port | socks4/5://…', 'One proxy per line'],
+      ['metadata suffix', 'string', 'Optional', 'e.g. " # source=geonode"'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'The app has no proxies — where do they come from?',
+      qFa: 'اپلیکیشن پروکسی ندارد — از کجا تأمین می‌شوند؟',
+      aEn: 'For Aparat, run the Google Drive sync (proxy_downloader.py) to populate local_proxies.txt. For YouTube, click PROXY COLLECTOR or run proxy_collector.py to populate live_proxies.txt from free sources.',
+      aFa: 'برای آپارات، همگام‌سازی Google Drive (proxy_downloader.py) را اجرا کنید تا local_proxies.txt پر شود. برای یوتیوب، دکمه PROXY COLLECTOR را بزنید یا proxy_collector.py را اجرا کنید تا live_proxies.txt از منابع رایگان پر شود.',
+    },
+    {
+      qEn: 'Run stops immediately with a network error — why?',
+      qFa: 'اجرا بلافاصله با خطای شبکه متوقف می‌شود — چرا؟',
+      aEn: 'Usually a bad proxy pool. Failover tries up to 30 alternate proxies per worker; if all workers still fail, refresh the proxy list and resume from the saved checkpoint.',
+      aFa: 'معمولاً استخر پروکسی ضعیف است. failover تا ۳۰ پروکسی جایگزین را امتحان می‌کند؛ اگر همه Workerها همچنان شکست بخورند، فهرست پروکسی را تازه کرده و از چک‌پوینت ذخیره‌شده ادامه دهید.',
+    },
+    {
+      qEn: 'The resume dialog never appears on startup?',
+      qFa: 'پنجره ازسرگیری هرگز هنگام اجرا ظاهر نمی‌شود؟',
+      aEn: 'Check the latest reports/run_*.json — resumable may already be false, or the run may have been abandoned. A different URL list on the new run also blocks the automatic resume match.',
+      aFa: 'آخرین reports/run_*.json را بررسی کنید — ممکن است resumable از قبل false باشد یا اجرا رها شده باشد. فهرست URL متفاوت در اجرای جدید نیز از تطبیق خودکار ازسرگیری جلوگیری می‌کند.',
+    },
+    {
+      qEn: 'YouTube bot test returns a BOT_DETECTED verdict?',
+      qFa: 'تست ربات یوتیوب نتیجه BOT_DETECTED می‌دهد؟',
+      aEn: 'Review the assigned YoutubeBrowserProfile fingerprint and check the reputation of the proxy in use — stealth evasion is best-effort, not guaranteed.',
+      aFa: 'اثر انگشت YoutubeBrowserProfile اختصاص‌یافته را بررسی کنید و اعتبار پروکسی مورد استفاده را چک کنید — دورزدن مخفی‌کاری تلاش نهایت است، نه تضمین‌شده.',
+    },
+    {
+      qEn: 'session_data/ keeps growing — can I clean it up?',
+      qFa: 'session_data/ مدام بزرگ‌تر می‌شود — می‌توان پاکش کرد؟',
+      aEn: 'The app never deletes worker profiles automatically. Archive or manually remove old session_data/worker_N folders you no longer need between test cycles.',
+      aFa: 'اپلیکیشن هرگز پروفایل‌های Worker را به‌صورت خودکار حذف نمی‌کند. پوشه‌های قدیمی session_data/worker_N را که دیگر لازم ندارید به‌صورت دستی آرشیو یا حذف کنید.',
+    },
+    {
+      qEn: 'Can this project run headless on a server?',
+      qFa: 'آیا این پروژه می‌تواند بدون نمایشگر روی سرور اجرا شود؟',
+      aEn: 'Only with code changes or an Xvfb virtual display — the GUI currently requires a real display target, and there is no CLI-only entry point in the current release.',
+      aFa: 'فقط با تغییر کد یا نمایشگر مجازی Xvfb — GUI در حال حاضر به یک هدف نمایشگر واقعی نیاز دارد و نقطه ورود فقط-CLI در نسخه فعلی وجود ندارد.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL
+  // ---------------------------------------------------------------
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>

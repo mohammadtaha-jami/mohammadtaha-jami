@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — RagBot</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  .cover-display-title { direction: ltr; unicode-bidi: isolate; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #10b981; border: 1px solid rgba(16,185,129,.35); }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 01 — RagBot Documentation</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production-Ready Specification</span>
+              <span class="fa-text hidden">مستندات فنی آماده تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: RAGBOT-2026-200</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight cover-display-title" dir="ltr">
+              <span class="relative inline-block">
+                <span class="relative z-10">R</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v2</span>
+              </span>AGBOT
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Project: <span class="text-paper/85">RagBot</span> — a session-based Retrieval-Augmented Generation chatbot with an LLM-powered intent router, running entirely locally via Ollama with a per-session FAISS vector store and no external cloud dependencies.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              پروژه: <span class="text-paper/85">RagBot</span> — یک چت‌بات RAG جلسه‌محور با مسیریاب هوشمند intent مبتنی بر LLM که به‌طور کامل و محلی از طریق Ollama اجرا می‌شود، با vector store مجزای FAISS برای هر session و بدون وابستگی به سرویس‌های ابری خارجی.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <a href="https://github.com/WhileTrue0087/BrandingAgent" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-brands fa-github"></i>
+              <span class="en-text">Repository</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مخزن کد</span>
+              <span class="font-mono text-xs opacity-70 hidden sm:inline">WhileTrue0087/BrandingAgent</span>
+            </a>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v2.0.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Production-Ready</span></span>
+            <span>LICENSE <span class="text-paper font-semibold">MIT</span></span>
+            <span>DEV <span class="text-paper font-semibold">MohammadTaha HosseinZadeh</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          RagBot is a <strong class="text-ink">session-based RAG chatbot</strong> with an LLM-powered intent router. The system ingests PDF documents or raw text into a per-session FAISS vector store and answers questions grounded in that knowledge — entirely locally via Ollama, with no external cloud dependencies. The core idea is <strong class="text-ink">conditional RAG</strong>: an intent router classifies each message as <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">GREETING</code>, <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">KNOWLEDGE</code>, or <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">CHITCHAT</code>, and only KNOWLEDGE questions trigger a FAISS lookup.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          RagBot یک <strong class="text-ink">چت‌بات RAG جلسه‌محور</strong> با مسیریاب intent مبتنی بر LLM است. سیستم فایل‌های PDF یا متن خام را در یک vector store مجزای FAISS برای هر session بارگذاری می‌کند و پاسخ‌ها را بر پایه همان دانش، به‌طور کامل و محلی از طریق Ollama و بدون وابستگی به سرویس‌های ابری تولید می‌کند. ایده اصلی <strong class="text-ink">RAG شرطی</strong> است: مسیریاب intent هر پیام را به یکی از سه دسته <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">GREETING</code>، <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">KNOWLEDGE</code> یا <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">CHITCHAT</code> تقسیم می‌کند و فقط سوالات KNOWLEDGE جستجوی FAISS را فعال می‌کنند.
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Intent Classes</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">دسته‌های Intent</p>
+            <p class="font-display text-2xl mt-1 text-rust">3</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Retrieval Top-K</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">Top-K بازیابی</p>
+            <p class="font-display text-2xl mt-1 text-rust">4</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Router Accuracy Target</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف دقت مسیریاب</p>
+            <p class="font-display text-2xl mt-1 text-rust">≥95%</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Cloud Dependencies</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">وابستگی ابری</p>
+            <p class="font-display text-2xl mt-1 text-rust">0</p>
+          </div>
+        </div>
+
+        <!-- Technical objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Objective</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Metric</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معیار</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Target</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف کمی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Latency</td><td class="px-4 py-3 text-ink/70">Time-to-first-token (non-RAG)</td><td class="px-4 py-3 text-ink/70">&lt; 2s</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Retrieval Precision</td><td class="px-4 py-3 text-ink/70">Top-4 chunk relevance</td><td class="px-4 py-3 text-ink/70">≥ 80%</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Router Accuracy</td><td class="px-4 py-3 text-ink/70">Correct intent classification</td><td class="px-4 py-3 text-ink/70">≥ 95%</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Session Isolation</td><td class="px-4 py-3 text-ink/70">Cross-session data leakage</td><td class="px-4 py-3 text-ink/70">0%</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Uptime</td><td class="px-4 py-3 text-ink/70">API availability</td><td class="px-4 py-3 text-ink/70">≥ 99.9% (single-node)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Scope -->
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink en-text">In Scope</h3>
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">در محدوده</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Session-based chat with isolated FAISS stores, PDF/raw-text ingestion with recursive chunking, intent classification, conditional RAG with source previews, bounded conversation memory, a REST API (FastAPI) with a bundled RTL chat UI, and optional FAISS disk persistence.</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">چت جلسه‌محور با vector store مجزا، بارگذاری PDF/متن خام با chunking بازگشتی، طبقه‌بندی intent، RAG شرطی همراه با پیش‌نمایش منابع، حافظه محدود مکالمه، یک REST API (FastAPI) به همراه رابط چت RTL و ماندگاری اختیاری FAISS روی دیسک.</p>
+
+        <h3 class="font-display text-lg mt-8 mb-3 text-ink en-text">Out of Scope (v2.0)</h3>
+        <h3 class="font-display text-lg mt-8 mb-3 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده (نسخه ۲.۰)</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Multi-user authentication / RBAC, horizontal scaling or distributed vector stores, streaming responses (SSE/WebSocket), and cloud LLM providers (OpenAI, Anthropic, etc.).</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت چندکاربره / RBAC، مقیاس‌پذیری افقی یا vector store توزیع‌شده، پاسخ‌های استریم (SSE/WebSocket) و ارائه‌دهندگان LLM ابری (OpenAI، Anthropic و غیره).</p>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Interest</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دغدغه</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">End Users</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Chat with company knowledge base</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">گفتگو با پایگاه دانش شرکت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Business Owners</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Grounded answers on products/policies</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پاسخ‌های مستند درباره محصولات و سیاست‌ها</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">DevOps</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Local-first deployment, minimal infra</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">استقرار محلی‌محور، زیرساخت حداقلی</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Security Team</td><td class="px-4 py-3 text-ink/70"><span class="en-text">No data leaves the host (privacy)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عدم خروج داده از سرور (حریم خصوصی)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری کلان</h3>
+        <div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+          <pre class="mermaid">
+flowchart TB
+    subgraph Client["Client Layer"]
+        UI["index.html (RTL Chat UI)"]
+        API_CLIENT["REST API Client"]
+    end
+    subgraph API["API Layer (FastAPI)"]
+        ROUTERAPP["main.py FastAPI App"]
+        CORS["CORS Middleware"]
+        VALIDATION["Pydantic Validation"]
+    end
+    subgraph CORE["Core Processing (processor.py)"]
+        SESSION_MGR["Session Manager"]
+        INTENT_ROUTER["Intent Router"]
+        COND_RAG["Conditional RAG Engine"]
+        MEMORY["Conversation Memory"]
+    end
+    subgraph RAG["RAG Components"]
+        SPLITTER["RecursiveCharacterTextSplitter"]
+        EMBEDDINGS["OllamaEmbeddings"]
+        FAISS_STORE["FAISS Vector Store"]
+        PDF_LOADER["PyPDFLoader"]
+    end
+    subgraph LLM["Local LLM Layer (Ollama)"]
+        CHAT_LLM["Chat Model llama3.2:1b"]
+        ROUTER_LLM["Router Model temp=0"]
+    end
+    subgraph STORAGE["Persistence"]
+        DISK["FAISS Disk Persistence"]
+        RAM["In-Memory Session State"]
+    end
+    UI --> ROUTERAPP
+    API_CLIENT --> ROUTERAPP
+    ROUTERAPP --> CORS
+    ROUTERAPP --> VALIDATION
+    ROUTERAPP --> SESSION_MGR
+    SESSION_MGR --> INTENT_ROUTER
+    INTENT_ROUTER --> COND_RAG
+    COND_RAG --> MEMORY
+    COND_RAG --> FAISS_STORE
+    PDF_LOADER --> SPLITTER
+    SPLITTER --> EMBEDDINGS
+    EMBEDDINGS --> FAISS_STORE
+    FAISS_STORE --> DISK
+    SESSION_MGR --> RAM
+    INTENT_ROUTER --> ROUTER_LLM
+    COND_RAG --> CHAT_LLM
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Request Lifecycle</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چرخه پردازش درخواست</h3>
+        <div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+          <pre class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant API as FastAPI
+    participant P as RAGProcessor
+    participant R as Router LLM
+    participant F as FAISS
+    participant C as Chat LLM
+    U->>API: POST /api/chat
+    API->>P: ask(session_id, question)
+    P->>R: classify intent
+    R-->>P: GREETING or KNOWLEDGE or CHITCHAT
+    alt KNOWLEDGE
+        P->>F: retrieve top-4 chunks
+        F-->>P: relevant documents
+        P->>C: RAG prompt with context
+        C-->>P: grounded answer
+    else GREETING/CHITCHAT
+        P->>C: general chat prompt
+        C-->>P: general answer
+    end
+    P-->>API: answer, sources, intent
+    API-->>U: 200 JSON response
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory Structure</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار دایرکتوری‌ها</h3>
+        <div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-10 overflow-x-auto">
+          <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="dir-tree">RagBot/
+├── main.py              # FastAPI application layer
+├── processor.py         # Core RAG engine (sessions, router, FAISS, prompts)
+├── index.html            # Single-page RTL chat UI (served at /)
+├── requirements.txt
+├── readme.md
+├── .env                  # gitignored
+├── data/faiss_sessions/{session_id}/
+│   ├── index.faiss
+│   └── index.pkl
+├── static/
+├── docs/
+├── tests/
+└── docker/
+    ├── Dockerfile
+    └── docker-compose.yml</pre>
+          <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('dir-tree', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Architectural Layers</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه‌های معماری</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Layer</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Component</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Presentation</td><td class="px-4 py-3 font-mono text-xs text-ink/80">index.html</td><td class="px-4 py-3 text-ink/70"><span class="en-text">RTL chat interface, session ID in localStorage</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط چت RTL، session ID در localStorage</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">API</td><td class="px-4 py-3 font-mono text-xs text-ink/80">main.py</td><td class="px-4 py-3 text-ink/70"><span class="en-text">HTTP routing, CORS, validation, error mapping</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیریابی HTTP، CORS، اعتبارسنجی، نگاشت خطا</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Application</td><td class="px-4 py-3 font-mono text-xs text-ink/80">processor.py → RAGProcessor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Session lifecycle, intent routing, conditional RAG</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">چرخه حیات session، مسیریابی intent، RAG شرطی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Domain</td><td class="px-4 py-3 font-mono text-xs text-ink/80">SessionState, ChatMessage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Session isolation, chat memory, metadata</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جداسازی session، حافظه چت، متادیتا</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Infrastructure</td><td class="px-4 py-3 font-mono text-xs text-ink/80">FAISS, Ollama, PyPDFLoader</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Vector storage, LLM inference, document parsing</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی برداری، استنتاج LLM، تجزیه سند</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Design Patterns</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">الگوهای طراحی</h3>
+        <ul class="grid sm:grid-cols-2 gap-3 max-w-3xl">
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Singleton</strong> — <span class="en-text">single shared RAGProcessor instance</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک نمونه مشترک RAGProcessor</span></li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Lazy Initialization</strong> — <span class="en-text">embeddings/LLM created on first use</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساخت embeddings/LLM در اولین استفاده</span></li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Strategy</strong> — <span class="en-text">intent-based routing paths</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسیرهای مبتنی بر intent</span></li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Repository</strong> — <span class="en-text">in-memory session dict</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">dict حافظه‌ای session‌ها</span></li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Facade</strong> — <span class="en-text">clean API over LangChain/FAISS/Ollama</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">API ساده روی LangChain/FAISS/Ollama</span></li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">DTO</strong> — <span class="en-text">Pydantic request/response models</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدل‌های Pydantic برای درخواست/پاسخ</span></li>
+        </ul>
+      </div>
+
+      <!-- ========== 003 DATABASE SCHEMA ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="طرح داده‌ها"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text mb-6">
+          RagBot has <strong class="text-ink">no traditional SQL/NoSQL database</strong>. It relies on an in-memory session registry (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">dict[str, SessionState]</code>), a per-session FAISS vector store, and optional disk persistence under <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">data/faiss_sessions/{session_id}/</code>.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden mb-6" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          RagBot <strong class="text-ink">هیچ پایگاه‌داده SQL/NoSQL سنتی</strong> ندارد. سیستم بر یک ثبت‌کننده session در حافظه (<code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">dict[str, SessionState]</code>)، یک vector store مجزای FAISS برای هر session و ماندگاری اختیاری روی دیسک در <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">data/faiss_sessions/{session_id}/</code> تکیه می‌کند.
+        </p>
+
+        <div class="mermaid-card bg-paperdark/60 rounded-xl border border-ink/5 p-4 mb-10 overflow-x-auto">
+          <pre class="mermaid">
+erDiagram
+    SESSION ||--o{ CHAT_MESSAGE : contains
+    SESSION ||--o{ DOCUMENT_CHUNK : indexes
+    SESSION {
+        string session_id PK
+        int document_count
+        bool has_vectorstore
+        bool persist_enabled
+        int chat_history_length
+    }
+    CHAT_MESSAGE {
+        string role
+        string content
+    }
+    DOCUMENT_CHUNK {
+        string source
+        int page
+        string preview
+        vector embedding
+    }
+          </pre>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap mb-4" id="db-filters"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Field</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Type</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Constraints</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Description</th>
+            </tr></thead>
+            <tbody id="db-tbody"></tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Persistence Strategy</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">استراتژی ماندگاری</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Mode</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">PERSIST_FAISS</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Use Case</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربرد</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">RAM-only</td><td class="px-4 py-3 font-mono text-xs">false (default)</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Development, ephemeral demos</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توسعه، دموهای موقت</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Disk-persisted</td><td class="px-4 py-3 font-mono text-xs">true</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Production, long-lived sessions</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تولید، session‌های ماندگار</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-4 text-xs font-mono text-amber/80 bg-amber/5 border border-amber/20 rounded-lg px-4 py-3 max-w-2xl en-text"><i class="fa-solid fa-triangle-exclamation mr-1"></i> allow_dangerous_deserialization=True is required by LangChain for local FAISS loading — only load indexes from trusted sources.</p>
+        <p class="mt-4 text-xs font-mono text-amber/80 bg-amber/5 border border-amber/20 rounded-lg px-4 py-3 max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;"><i class="fa-solid fa-triangle-exclamation mr-1"></i> allow_dangerous_deserialization=True برای بارگذاری محلی FAISS در LangChain لازم است — فقط از منابع معتمد بارگذاری کنید.</p>
+      </div>
+
+      <!-- ========== 004 API REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text mb-2">Base URL: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">http://{HOST}:{PORT}</code> · Swagger UI: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">/docs</code></p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden mb-2" style="font-family:'El Messiri',sans-serif;">آدرس پایه: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">http://{HOST}:{PORT}</code> · مستندات Swagger: <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">/docs</code></p>
+        <p class="text-ink/60 text-sm max-w-2xl mb-8 en-text"><code class="text-xs">session_id</code> can be sent via header <code class="text-xs">X-Session-ID</code> or in the JSON body (body takes precedence). Neither present → <code class="text-xs">400</code>.</p>
+        <p class="text-ink/60 text-sm max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">session_id</code> می‌تواند از طریق هدر <code class="text-xs">X-Session-ID</code> یا در بدنه JSON ارسال شود (بدنه اولویت دارد). در صورت نبود هر دو → <code class="text-xs">400</code>.</p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Purpose</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Auth</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-sage">POST</td><td class="px-4 py-3 text-ink/80">/api/session</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Create a new session</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد session جدید</span></td><td class="px-4 py-3 text-ink/50">None</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink/80">/api/session/{id}</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Get session stats</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">آمار session</span></td><td class="px-4 py-3 text-ink/50">Session ID</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-red-400">DELETE</td><td class="px-4 py-3 text-ink/80">/api/session/{id}</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Delete session + disk index</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">حذف session و ایندکس دیسک</span></td><td class="px-4 py-3 text-ink/50">Session ID</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-sage">POST</td><td class="px-4 py-3 text-ink/80">/api/ingest/pdf</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Upload &amp; index a PDF</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بارگذاری و ایندکس PDF</span></td><td class="px-4 py-3 text-ink/50">Header</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-sage">POST</td><td class="px-4 py-3 text-ink/80">/api/ingest/text</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Ingest raw text</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بارگذاری متن خام</span></td><td class="px-4 py-3 text-ink/50">Header/Body</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-sage">POST</td><td class="px-4 py-3 text-ink/80">/api/chat</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Ask a question (router + RAG)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پرسیدن سوال (router + RAG)</span></td><td class="px-4 py-3 text-ink/50">Header/Body</td></tr>
+              <tr><td class="px-4 py-3 text-rust">GET</td><td class="px-4 py-3 text-ink/80">/</td><td class="px-4 py-3 text-ink/70 font-sans"><span class="en-text">Serve chat UI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سرو رابط چت</span></td><td class="px-4 py-3 text-ink/50">None</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">POST /api/chat — Example</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمونه POST /api/chat</h3>
+        <div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-4 overflow-x-auto">
+          <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="req-example">{
+  "question": "What are your support hours?",
+  "session_id": "3f2b8c1e-9a4d-4f6e-8b2a-1c5d7e9f0a3b"
+}</pre>
+        </div>
+        <div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-10 overflow-x-auto">
+          <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="res-example">{
+  "answer": "Our support hours are 9:00 to 18:00, Mon–Fri.",
+  "sources": [
+    { "source": "brand-guide.pdf", "page": 3, "preview": "Support hours: 9–18..." }
+  ],
+  "intent": "KNOWLEDGE"
+}</pre>
+          <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('res-example', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Error Codes</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">کدهای خطا</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[420px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Code</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Meaning</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معنی</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">400</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Missing session_id / empty input</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نبود session_id / ورودی خالی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">404</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Session not found</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">session یافت نشد</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">500</td><td class="px-4 py-3 text-ink/70"><span class="en-text">LLM, retrieval, or embedding failure</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خطای LLM، بازیابی یا embedding</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی"></div>
+
+        <p class="text-ink/70 text-sm max-w-2xl mb-6 en-text">All configuration loads from <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">.env</code> via python-dotenv at module import time.</p>
+        <p class="text-ink/70 text-sm max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;">تمام پیکربندی از طریق python-dotenv و در زمان import ماژول از <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">.env</code> بارگذاری می‌شود.</p>
+
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Default</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">HOST</td><td class="px-4 py-3 text-ink/70">127.0.0.1</td><td class="px-4 py-3 text-ink/70 font-sans">Uvicorn bind address</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">PORT</td><td class="px-4 py-3 text-ink/70">8000</td><td class="px-4 py-3 text-ink/70 font-sans">Uvicorn bind port</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">OLLAMA_BASE_URL</td><td class="px-4 py-3 text-ink/70">http://localhost:11434</td><td class="px-4 py-3 text-ink/70 font-sans">Ollama HTTP API endpoint</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">OLLAMA_CHAT_MODEL</td><td class="px-4 py-3 text-ink/70">llama3.2:1b</td><td class="px-4 py-3 text-ink/70 font-sans">Chat + router LLM model</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">OLLAMA_EMBEDDING_MODEL</td><td class="px-4 py-3 text-ink/70">nomic-embed-text</td><td class="px-4 py-3 text-ink/70 font-sans">Embedding model</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">OLLAMA_CHAT_TEMPERATURE</td><td class="px-4 py-3 text-ink/70">0.3</td><td class="px-4 py-3 text-ink/70 font-sans">Generation temperature</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">OLLAMA_ROUTER_TEMPERATURE</td><td class="px-4 py-3 text-ink/70">0</td><td class="px-4 py-3 text-ink/70 font-sans">Router temperature (deterministic)</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">MAX_HISTORY_MESSAGES</td><td class="px-4 py-3 text-ink/70">10</td><td class="px-4 py-3 text-ink/70 font-sans">Max messages kept per session</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">PERSIST_FAISS</td><td class="px-4 py-3 text-ink/70">false</td><td class="px-4 py-3 text-ink/70 font-sans">Persist indexes to disk</td></tr>
+              <tr><td class="px-4 py-3 text-rust">FAISS_DATA_DIR</td><td class="px-4 py-3 text-ink/70">data/faiss_sessions</td><td class="px-4 py-3 text-ink/70 font-sans">Directory for persisted indexes</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Hardcoded Constants</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثابت‌های تعبیه‌شده</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[420px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Constant</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Value</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Location</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">CHUNK_SIZE</td><td class="px-4 py-3 text-ink/70">1000</td><td class="px-4 py-3 text-ink/70">processor.py</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">CHUNK_OVERLAP</td><td class="px-4 py-3 text-ink/70">200</td><td class="px-4 py-3 text-ink/70">processor.py</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">RETRIEVAL_K</td><td class="px-4 py-3 text-ink/70">4</td><td class="px-4 py-3 text-ink/70">_retrieve_context</td></tr>
+              <tr><td class="px-4 py-3 text-rust">SOURCE_PREVIEW_LENGTH</td><td class="px-4 py-3 text-ink/70">200</td><td class="px-4 py-3 text-ink/70">_docs_to_sources</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Prerequisites</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیش‌نیازها</h3>
+        <p class="text-ink/70 text-sm max-w-2xl mb-6 en-text">Python 3.10+, Ollama running locally, and the models <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">llama3.2:1b</code> and <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">nomic-embed-text</code> pulled.</p>
+        <p class="text-ink/70 text-sm max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;">Python 3.10+، Ollama در حال اجرا به‌صورت محلی و مدل‌های <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">llama3.2:1b</code> و <code class="text-xs bg-charcoal/60 px-1.5 py-0.5 rounded">nomic-embed-text</code> بارگیری‌شده.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Local Development</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌اندازی توسعه محلی</h3>
+        <div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-10 overflow-x-auto">
+          <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="setup-cmds">python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+ollama serve
+python main.py</pre>
+          <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('setup-cmds', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Docker Compose</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">Docker Compose</h3>
+        <div class="bg-charcoal rounded-xl border border-ink/10 p-4 mb-10 overflow-x-auto">
+          <pre class="font-mono text-xs text-ink/70 leading-relaxed" id="compose-yml">services:
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: ["ollama_data:/root/.ollama"]
+
+  ragbot:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - PERSIST_FAISS=true
+    volumes: ["faiss_data:/app/data/faiss_sessions"]
+    depends_on: [ollama]
+
+volumes:
+  ollama_data:
+  faiss_data:</pre>
+          <button class="copy-btn mt-3 inline-flex items-center gap-2 font-mono text-[11px] text-ink/50 hover:text-rust border border-ink/10 rounded-lg px-3 py-1.5" onclick="copyBlock('compose-yml', this)"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Production Recommendations</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توصیه‌های تولید</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Setting</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Dev</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Production</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">HOST</td><td class="px-4 py-3 text-ink/70">127.0.0.1</td><td class="px-4 py-3 text-ink/70">0.0.0.0 (behind proxy)</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">PERSIST_FAISS</td><td class="px-4 py-3 text-ink/70">false</td><td class="px-4 py-3 text-ink/70">true</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">MAX_HISTORY_MESSAGES</td><td class="px-4 py-3 text-ink/70">10</td><td class="px-4 py-3 text-ink/70">20</td></tr>
+              <tr><td class="px-4 py-3 text-rust">OLLAMA_CHAT_TEMPERATURE</td><td class="px-4 py-3 text-ink/70">0.3</td><td class="px-4 py-3 text-ink/70">0.2</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Scaling Considerations</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ملاحظات مقیاس‌پذیری</h3>
+        <ul class="grid sm:grid-cols-2 gap-3 max-w-3xl en-text">
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Multiple users</strong> — session isolation already handles this; add rate limiting.</li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">High concurrency</strong> — run multiple uvicorn workers.</li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Large knowledge base</strong> — increase CHUNK_SIZE; tune HNSW params.</li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">Multi-node</strong> — replace in-memory sessions with Redis; FAISS → Qdrant/Weaviate.</li>
+        </ul>
+        <ul class="grid sm:grid-cols-2 gap-3 max-w-3xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">چند کاربر</strong> — جداسازی session این را پوشش می‌دهد؛ افزودن rate limiting.</li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">همزمانی بالا</strong> — اجرای چند worker uvicorn.</li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">پایگاه دانش بزرگ</strong> — افزایش CHUNK_SIZE؛ تنظیم پارامترهای HNSW.</li>
+          <li class="bg-paperdark/60 rounded-xl p-4 border border-ink/5 text-sm text-ink/75"><strong class="text-ink">چند‌نودی</strong> — جایگزینی session‌های حافظه‌ای با Redis؛ FAISS → Qdrant/Weaviate.</li>
+        </ul>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; FAQ" data-title-fa="امنیت و سوالات متداول"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Security Best Practices</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">بهترین شیوه‌های امنیتی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Practice</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">شیوه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Implementation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیاده‌سازی</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Risk</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ریسک</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80">Input Validation</td><td class="px-4 py-3 text-ink/70">Pydantic min_length=1 on text fields</td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">LOW</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80">CORS</td><td class="px-4 py-3 text-ink/70">allow_origins=["*"] — dev only</td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/80">Deserialization</td><td class="px-4 py-3 text-ink/70">allow_dangerous_deserialization=True for FAISS load</td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/80">Authentication</td><td class="px-4 py-3 text-ink/70">None in v2.0 — session ID acts as bearer token</td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">CRITICAL</span></td></tr>
+              <tr><td class="px-4 py-3 text-ink/80">Secrets Management</td><td class="px-4 py-3 text-ink/70">.env gitignored, never committed</td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">LOW</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Error Handling Matrix</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماتریس مدیریت خطا</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[420px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Exception</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">HTTP Status</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Message</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیام</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm font-mono">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-rust">KeyError</td><td class="px-4 py-3 text-ink/70">404</td><td class="px-4 py-3 text-ink/70 font-sans">Session not found</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-rust">ValueError</td><td class="px-4 py-3 text-ink/70">400</td><td class="px-4 py-3 text-ink/70 font-sans">Empty/invalid input</td></tr>
+              <tr><td class="px-4 py-3 text-rust">Exception</td><td class="px-4 py-3 text-ink/70">500</td><td class="px-4 py-3 text-ink/70 font-sans">Generic server error</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — RagBot v2.0.0 — MohammadTaha HosseinZadeh · MIT License.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — RagBot نسخه ۲.۰.۰ — محمدطاها حسین‌زاده · مجوز MIT.</p>
+</div>
+
+<script>
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    document.querySelectorAll('.file-tab').forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۱ — مستندات RagBot';
+      if (tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 01 — RagBot Documentation';
+      if (tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  function goBack() {
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',              titleFa: 'صفحه جلد',              icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',          titleFa: 'معرفی سیستم',            icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',    titleFa: 'معماری و طراحی',         icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database & Data Modeling', titleFa: 'طرح داده‌ها',             icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API Reference',            titleFa: 'مرجع API',               icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration',            titleFa: 'پیکربندی',               icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',      titleFa: 'استقرار و DevOps',       icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & FAQ',           titleFa: 'امنیت و سوالات',         icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema (SessionState / ChatMessage / FAISS index)
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'SessionState (in-memory dataclass)', fields: [
+      ['session_id', 'str', 'Required, unique, immutable', 'UUID v4 identifier'],
+      ['vectorstore', 'FAISS | None', 'Lazy-loaded until first ingest', 'Per-session FAISS index'],
+      ['document_count', 'int', '>= 0', 'Total chunks indexed'],
+      ['chat_history', 'list[ChatMessage]', 'Max MAX_HISTORY_MESSAGES (default 10)', 'Bounded conversation memory'],
+      ['metadata', 'dict[str, Any]', 'Optional', 'Extensible session metadata'],
+    ]},
+    { table: 'ChatMessage (in-memory dataclass)', fields: [
+      ['role', 'Literal["user","assistant"]', 'Must be one of the two literals', 'Message sender'],
+      ['content', 'str', 'Non-empty', 'Message text'],
+    ]},
+    { table: 'FAISS Index (persisted / in-memory)', fields: [
+      ['index.faiss', 'binary', 'Created on first ingest', 'FAISS vector index'],
+      ['index.pkl', 'pickle', 'Serialized with save_local()', 'Metadata + document store'],
+      ['embedding_dim', 'int', 'nomic-embed-text', '768'],
+      ['chunk_size', 'int', '1000 chars', 'Text chunk length'],
+      ['chunk_overlap', 'int', '200 chars', 'Overlap between chunks'],
+      ['k', 'int', 'Hardcoded in _retrieve_context', '4 (retrieval top-k)'],
+    ]},
+    { table: 'Document Metadata (from PyPDFLoader)', fields: [
+      ['source', 'str', 'Set by loader or ingest_text', 'File path or "user_text"'],
+      ['page', 'int | None', 'Present for PDFs only', 'PDF page number'],
+      ['page_content', 'str', 'Truncated to 200 chars in previews', 'Chunk text'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'ConnectionError: Failed to connect to Ollama',
+      qFa: 'خطای اتصال به Ollama',
+      aEn: 'Ollama is not running or OLLAMA_BASE_URL is wrong. Start it with "ollama serve" and verify with "curl http://localhost:11434/api/tags".',
+      aFa: 'Ollama در حال اجرا نیست یا OLLAMA_BASE_URL اشتباه است. با "ollama serve" اجرا کنید و با "curl http://localhost:11434/api/tags" بررسی کنید.',
+    },
+    {
+      qEn: 'ModelNotFoundError: llama3.2:1b not found',
+      qFa: 'مدل llama3.2:1b یافت نشد',
+      aEn: 'The model was not pulled. Run "ollama pull llama3.2:1b" and "ollama pull nomic-embed-text".',
+      aFa: 'مدل بارگیری نشده است. دستورات "ollama pull llama3.2:1b" و "ollama pull nomic-embed-text" را اجرا کنید.',
+    },
+    {
+      qEn: 'Session invalid or expired?',
+      qFa: 'session نامعتبر یا منقضی است؟',
+      aEn: 'The server may have restarted with PERSIST_FAISS=false. Create a new session, or enable PERSIST_FAISS=true for persistence across restarts.',
+      aFa: 'ممکن است سرور با PERSIST_FAISS=false ری‌استارت شده باشد. یک session جدید بسازید یا PERSIST_FAISS=true را برای ماندگاری بین ری‌استارت‌ها فعال کنید.',
+    },
+    {
+      qEn: 'Chat returns empty or generic answers for KNOWLEDGE questions',
+      qFa: 'پاسخ‌های خالی یا عمومی برای سوالات KNOWLEDGE',
+      aEn: 'No documents were ingested, or retrieval found no relevant chunks. Ingest via /api/ingest/pdf or /api/ingest/text and check chunks_indexed > 0.',
+      aFa: 'هیچ سندی بارگذاری نشده یا بازیابی chunk مرتبطی پیدا نکرده است. از /api/ingest/pdf یا /api/ingest/text بارگذاری کنید و chunks_indexed > 0 را بررسی کنید.',
+    },
+    {
+      qEn: 'High latency on the first request?',
+      qFa: 'تاخیر بالا در اولین درخواست؟',
+      aEn: 'Embeddings/LLM models are lazily initialized. Pre-warm with a dummy request at startup, or use a warmup script.',
+      aFa: 'مدل‌های embeddings/LLM به‌صورت lazy مقداردهی می‌شوند. با یک درخواست ساختگی هنگام استارت یا اسکریپت warmup آن‌ها را از پیش گرم کنید.',
+    },
+    {
+      qEn: 'Can this project be reused or redistributed?',
+      qFa: 'آیا این پروژه قابل استفاده مجدد یا توزیع است؟',
+      aEn: 'Yes — RagBot is released under the MIT License by developer MohammadTaha HosseinZadeh. See the repository LICENSE file.',
+      aFa: 'بله — RagBot تحت مجوز MIT توسط توسعه‌دهنده محمدطاها حسین‌زاده منتشر شده است. فایل LICENSE مخزن را ببینید.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>
