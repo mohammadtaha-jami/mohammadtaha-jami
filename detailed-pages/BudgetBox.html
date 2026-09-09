@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Technical Spec — BudgetBox</title>
+<meta name="theme-color" content="#000000" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lemonada:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          paper:    '#e5e5e5',
+          paperdark:'#18181a',
+          ink:      '#f5f5f5',
+          charcoal: '#0a0a0a',
+          charcoal2:'#141416',
+          amber:    '#10b981',
+          rust:     '#34d399',
+          sage:     '#6ee7b7',
+        },
+        fontFamily: {
+          display: ['"Archivo Black"', 'sans-serif'],
+          script:  ['"Caveat"', 'cursive'],
+          mono:    ['"JetBrains Mono"', 'monospace'],
+          sans:    ['"Inter"', 'sans-serif'],
+          fa:      ['"El Messiri"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body {
+    background-color: #000000;
+    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .paper-noise::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ---- Folder tabs ---- */
+  .tab-stack-wrap { position: relative; }
+  .tab-stack-backing {
+    position: absolute;
+    inset: -8px -16px -16px -8px;
+    background: linear-gradient(155deg, #1e1e21, #0a0a0a 70%);
+    border-radius: 6px 22px 22px 6px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.02);
+    z-index: 0;
+  }
+  #tab-stack { z-index: 1; }
+
+  .file-tab {
+    position: relative;
+    background-color: #1c1c1e;
+    border-radius: 0 12px 12px 0;
+    border-left: 3px solid transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease, background-color .32s ease, border-color .32s ease;
+    cursor: pointer;
+  }
+  .file-tab:hover { transform: translateX(6px); background-color: #1f1f22; }
+  .file-tab.is-active {
+    background-color: #141416;
+    border-left-color: #10b981;
+    transform: translateX(16px);
+    box-shadow: -8px 8px 22px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(16,185,129,.15);
+  }
+  .file-tab.is-active .tab-icon { color: #f5f5f5; opacity: 1; }
+  .file-tab.is-active .tab-title { color: #e5e5e5; }
+
+  .tab-flag {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    min-width: 38px;
+    height: 20px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    background: #1f1f22;
+    color: rgba(52,211,153,.85);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    box-shadow: 0 -3px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.05) inset;
+    transition: transform .32s cubic-bezier(.2,.8,.2,1), background-color .32s ease, color .32s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .file-tab:hover .tab-flag { transform: translateY(-3px); }
+  .file-tab.is-active .tab-flag {
+    transform: translateY(-9px);
+    background: #10b981;
+    color: #0a0a0a;
+    box-shadow: 0 -4px 10px rgba(0,0,0,.4);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade { animation: fadeIn .4s cubic-bezier(.2,.8,.2,1); }
+
+  .db-filter-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.15);
+    color: rgba(245,245,245,.55);
+    transition: all .2s ease;
+  }
+  .db-filter-btn:hover { border-color: rgba(245,245,245,.35); color: #f5f5f5; }
+  .db-filter-btn.active-filter {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+
+  .faq-item .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-answer { max-height: 600px; opacity: 1; }
+  .faq-item.open .faq-chevron { transform: rotate(180deg); }
+  .faq-chevron { transition: transform .3s ease; }
+
+  .copy-btn { transition: all .2s ease; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245,245,245,.18); border-radius: 999px; }
+
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .mermaid-card svg { max-width: 100%; height: auto; }
+
+  /* Language toggle */
+  .lang-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(245,245,245,.2);
+    color: rgba(245,245,245,.5);
+    transition: all .22s ease;
+    cursor: pointer;
+    background: transparent;
+  }
+  .lang-btn.active-lang {
+    background: #10b981;
+    border-color: #10b981;
+    color: #0a0a0a;
+  }
+  .lang-btn:not(.active-lang):hover {
+    border-color: rgba(245,245,245,.4);
+    color: #f5f5f5;
+  }
+
+  /* RTL mode */
+  [dir="rtl"] .file-tab {
+    border-left: none;
+    border-right: 3px solid transparent;
+    border-radius: 12px 0 0 12px;
+  }
+  [dir="rtl"] .file-tab.is-active { border-right-color: #10b981; }
+  [dir="rtl"] .tab-stack-backing {
+    border-radius: 22px 6px 6px 22px;
+  }
+  [dir="rtl"] .fa-chevron-right { transform: scaleX(-1); }
+  [dir="rtl"] .fa-house { transform: none; }
+
+  /* Persian font for RTL content */
+  .fa-text { font-family: 'El Messiri', sans-serif !important; }
+  [dir="rtl"] body,
+  [dir="rtl"] .font-sans,
+  [dir="rtl"] .text-sm,
+  [dir="rtl"] .text-ink { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'El Messiri', sans-serif; font-weight: 700; letter-spacing: 0; }
+  .cover-display-title { direction: ltr; unicode-bidi: isolate; }
+  [dir="rtl"] .font-script { font-family: 'Lemonada', 'El Messiri', sans-serif; font-weight: 400; font-style: normal; }
+  [dir="rtl"] .tab-title { font-family: 'El Messiri', sans-serif; }
+  [dir="rtl"] .leading-relaxed { line-height: 2; }
+
+  /* Security badge colors — kept semantically distinct (severity), rest of the page uses the brand purple */
+  .badge-critical { background: rgba(248,113,113,.14); color: #f87171; border: 1px solid rgba(248,113,113,.35); }
+  .badge-medium   { background: rgba(251,191,36,.14); color: #fbbf24; border: 1px solid rgba(251,191,36,.35); }
+  .badge-low      { background: rgba(16,185,129,.16); color: #34d399; border: 1px solid rgba(16,185,129,.35); }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    border: 1px solid rgba(245,245,245,.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: all .22s ease;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+  }
+  .back-btn:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,.45);
+    background: rgba(52,211,153,.06);
+  }
+</style>
+</head>
+
+<body class="font-sans text-ink min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-14">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Back button -->
+      <button onclick="goBack()" class="back-btn" id="back-btn">
+        <i class="fa-solid fa-arrow-left" id="back-icon"></i>
+        <span id="back-label">Portfolio</span>
+      </button>
+      <div class="font-mono text-[11px] tracking-[0.22em] uppercase text-ink/45 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive"></i>
+        <span id="eyebrow-label">Drawer 02 — BudgetBox Documentation</span>
+      </div>
+    </div>
+    <!-- Language switcher -->
+    <div class="flex items-center gap-2 bg-charcoal2/60 border border-ink/10 rounded-full px-2 py-1.5">
+      <button class="lang-btn active-lang" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-fa" onclick="setLang('fa')">FA فا</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-10 items-start">
+
+    <!-- ===================== TAB STACK ===================== -->
+    <aside class="lg:sticky lg:top-8 lg:self-start w-full">
+      <div class="tab-stack-wrap pt-3 pr-4 pb-4 pl-2">
+        <div class="tab-stack-backing"></div>
+        <div id="tab-stack" class="relative flex flex-col"></div>
+      </div>
+      <p class="mt-4 font-mono text-[11px] text-ink/40 leading-relaxed pl-2" id="tab-hint">
+        Click a tab to pull that chapter to the front of the folder.
+      </p>
+    </aside>
+
+    <!-- ===================== CONTENT PANEL ===================== -->
+    <section id="content-panel" class="relative bg-charcoal2 rounded-2xl md:rounded-3xl shadow-2xl border border-white/5 min-h-[640px]">
+
+      <!-- ========== COVER ========== -->
+      <div id="view-cover" class="view -m-px bg-charcoal text-paper rounded-2xl md:rounded-3xl p-7 sm:p-10 md:p-14 relative overflow-hidden">
+        <div class="paper-noise relative"></div>
+        <div class="relative flex flex-col min-h-[560px]">
+          <div class="flex items-start justify-between flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber border border-amber/40 rounded-full px-3 py-1.5">
+              <i class="fa-solid fa-certificate"></i>
+              <span class="en-text">Production Architecture Specification</span>
+              <span class="fa-text hidden">مستندات معماری تولید</span>
+            </span>
+            <span class="font-mono text-[11px] text-paper/40">Doc ID: BudgetBox-ARCH-2026-010</span>
+          </div>
+
+          <div class="mt-10 md:mt-16">
+            <p class="font-script text-amber text-3xl sm:text-4xl md:text-5xl -mb-1 sm:-mb-2">
+              <span class="en-text">Technical Specification</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی و معماری</span>
+            </p>
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight cover-display-title" dir="ltr">
+              <span class="relative inline-block">
+                <span class="relative z-10">B</span>
+                <span class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-20 bg-amber text-charcoal text-[9px] sm:text-[10px] font-mono font-bold rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rotate-6 shadow-lg">v0</span>
+              </span>UDGETBOX
+            </h1>
+            <p class="mt-5 font-mono text-sm md:text-base text-paper/55 max-w-lg leading-relaxed en-text">
+              Product: <span class="text-paper/85">BudgetBox</span> — a team treasury and envelope-budgeting platform. A workspace holds a central operating balance and a set of boxes (liquidity envelopes); money is deposited, allocated into boxes, and spent as project or miscellaneous expenses and member payouts.
+            </p>
+            <p class="mt-5 text-sm md:text-base text-paper/55 max-w-lg leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">
+              محصول: <span class="text-paper/85">BudgetBox</span> — یک پلتفرم خزانه‌داری تیمی و بودجه‌بندی پاکتی (envelope). یک workspace دارای یک بودجه جاری مرکزی و مجموعه‌ای از باکس‌ها (پاکت‌های نقدینگی) است؛ پول واریز، به باکس‌ها تخصیص و به‌صورت هزینه پروژه، هزینه متفرقه یا پرداخت به اعضا خرج می‌شود.
+            </p>
+          </div>
+
+          <div class="mt-9 md:mt-10 flex flex-col sm:flex-row gap-3">
+            <button onclick="showView('001')"
+               class="inline-flex items-center justify-center gap-3 bg-amber text-charcoal font-semibold px-5 py-3 rounded-xl hover:brightness-110 active:scale-[.98] transition">
+              <i class="fa-solid fa-compass"></i>
+              <span class="en-text">System Overview</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معرفی سیستم</span>
+            </button>
+            <button onclick="showView('004')"
+               class="inline-flex items-center justify-center gap-3 border border-paper/25 text-paper font-semibold px-5 py-3 rounded-xl hover:bg-paper/10 active:scale-[.98] transition">
+              <i class="fa-solid fa-plug"></i>
+              <span class="en-text">API Reference</span>
+              <span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مرجع API</span>
+            </button>
+          </div>
+
+          <div class="mt-auto pt-10 border-t border-paper/10 mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-xs text-paper/55">
+            <span>VERSION <span class="text-paper font-semibold">v0.1.0</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sage"></span>STATUS <span class="text-paper font-semibold">Living document</span></span>
+            <span>UI LANGUAGE <span class="text-paper font-semibold">FA + EN</span></span>
+            <span>DB <span class="text-paper font-semibold">PostgreSQL 15</span></span>
+            <span class="hidden sm:inline text-paper/30 ml-auto en-text">Choose a chapter from the tabs →</span>
+            <span class="hidden sm:inline text-paper/30 ml-auto fa-text hidden" style="font-family:'El Messiri',sans-serif;">یک فصل از تب‌ها انتخاب کنید</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 001 SYSTEM OVERVIEW ========== -->
+      <div id="view-001" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="001" data-icon="fa-compass"
+             data-title-en="System Overview" data-title-fa="معرفی سیستم"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl en-text">
+          BudgetBox is a <strong class="text-ink">team treasury and envelope-budgeting platform</strong>. A single workspace owns a central operating balance and a set of boxes (liquidity envelopes). Money enters the workspace as deposits, is allocated into boxes, and is spent as project expenses, miscellaneous expenses, or member payouts. A project is a P&amp;L reporting axis, not a second wallet — cash still lives in the treasury and in boxes; projects attach history and analytics. The product is a <strong class="text-ink">modular monolith</strong>: one FastAPI process, one PostgreSQL database, one React SPA, with a claymorphic bilingual (FA/EN, RTL/LTR) interface.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          BudgetBox یک <strong class="text-ink">پلتفرم خزانه‌داری تیمی و بودجه‌بندی پاکتی</strong> است. یک workspace دارای یک بودجه جاری مرکزی (خزانه) و مجموعه‌ای از باکس‌ها (پاکت‌های نقدینگی) است. پول به‌صورت واریزی وارد workspace می‌شود، به باکس‌ها تخصیص می‌یابد و به‌عنوان هزینه پروژه، هزینه متفرقه یا پرداخت به اعضا خرج می‌شود. یک پروژه یک محور گزارش‌گیری سود و زیان است، نه یک کیف پول دوم — نقدینگی همچنان در خزانه و باکس‌ها باقی می‌ماند؛ پروژه‌ها فقط تاریخچه و تحلیل را به خود متصل می‌کنند. محصول یک <strong class="text-ink">مونولیت ماژولار</strong> است: یک فرآیند FastAPI، یک پایگاه‌داده PostgreSQL و یک SPA ری‌اکت با رابط کلی‌مورفیک دوزبانه (فارسی/انگلیسی، RTL/LTR).
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-8">
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Layers</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه‌ها</p>
+            <p class="font-display text-2xl mt-1 text-rust">6</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Persistence</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذخیره‌سازی</p>
+            <p class="font-display text-2xl mt-1 text-rust">PostgreSQL</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">Max seats</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">حداکثر عضو</p>
+            <p class="font-display text-2xl mt-1 text-rust">6</p>
+          </div>
+          <div class="bg-paperdark/60 rounded-xl p-4 border border-ink/5">
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 en-text">UI languages</p>
+            <p class="font-mono text-[11px] uppercase tracking-widest text-ink/40 fa-text hidden" style="font-family:'El Messiri',sans-serif;">زبان رابط</p>
+            <p class="font-display text-2xl mt-1 text-rust">FA / EN</p>
+          </div>
+        </div>
+
+        <!-- Money model -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Money Model</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدل مالی</h3>
+        <div class="relative mb-10">
+          <button onclick="copyBlock('money-model', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="money-model">Total workspace budget  =  current operating balance  +  Σ active box balances
+
+Current operating       =  Σ treasury INCOME where source = central_wallet
+                           − Σ treasury EXPENSE where source = central_wallet
+
+Box balance              =  Σ box-ledger INCOME  −  Σ box-ledger EXPENSE
+
+Allocate to box          =  treasury EXPENSE (kind=box_allocation) from central
+                            + box INCOME (allocation_in)
+                            (not new money)
+
+Project expense          =  treasury EXPENSE (kind=project_expense) from central
+                            (box optional)
+
+budget_limit ≤ 0         =  unlimited box ceiling (no over-limit warning gate)</code></pre>
+        </div>
+
+        <!-- Stakeholders -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Stakeholders</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفعان</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Stakeholder</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ذینفع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Need</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نیاز</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Workspace admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Create boxes/projects, manage seats (max 6), assign box members, delete destructive records</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساخت باکس/پروژه، مدیریت صندلی‌ها (حداکثر ۶)، تخصیص اعضای باکس، حذف رکوردهای مخرب</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Editor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Deposit, allocate, withdraw, record project expense, edit transactions</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">واریز، تخصیص، برداشت، ثبت هزینه پروژه، ویرایش تراکنش‌ها</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Viewer</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Read dashboard, ledger, boxes, projects — no money movement</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مشاهده داشبورد، دفتر کل، باکس‌ها، پروژه‌ها — بدون جابجایی پول</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Individual member</td><td class="px-4 py-3 text-ink/70"><span class="en-text">See "your share" — sum of payouts credited to them</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مشاهده «سهم شما» — مجموع پرداخت‌های اعتبار داده‌شده به او</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tech Objectives -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Technical Objectives</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اهداف فنی</h3>
+        <ol class="space-y-3 max-w-2xl">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T1</span><span class="text-ink/75 text-sm leading-relaxed en-text">Double-entry-like <strong>derived balances</strong> — never a mutable balance column on the wallet.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">موجودی‌های <strong>مشتق‌شده</strong> شبیه دوطرفه — هرگز ستون موجودی قابل‌تغییر روی کیف پول نیست.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T2</span><span class="text-ink/75 text-sm leading-relaxed en-text"><strong>Row-level locks</strong> (<code class="text-xs">SELECT … FOR UPDATE</code>) on box and workspace wallet rows before mutating money.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">قفل <strong>سطح ردیف</strong> (<code class="text-xs">SELECT … FOR UPDATE</code>) روی ردیف باکس و کیف‌پول workspace پیش از تغییر پول.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T3</span><span class="text-ink/75 text-sm leading-relaxed en-text"><strong>Alembic-only</strong> schema change in shared environments.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تغییر schema فقط از طریق <strong>Alembic</strong> در محیط‌های مشترک.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T4</span><span class="text-ink/75 text-sm leading-relaxed en-text"><strong>Bilingual UI</strong> (FA/EN) with Shamsi/Gregorian date formatting and Toman-style currency display.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط <strong>دوزبانه</strong> (فارسی/انگلیسی) با قالب‌بندی تاریخ شمسی/میلادی و نمایش ارز به سبک تومان.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">T5</span><span class="text-ink/75 text-sm leading-relaxed en-text"><strong>Role-based access</strong> at workspace level (admin/editor/viewer) plus per-box membership for roster and split payouts.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">دسترسی <strong>مبتنی بر نقش</strong> در سطح workspace (admin/editor/viewer) به‌همراه عضویت هر باکس برای roster و پرداخت‌های تقسیم‌شده.</span></li>
+        </ol>
+
+        <!-- Out of scope -->
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink en-text">Out of Scope (current release)</h3>
+        <h3 class="font-display text-lg mt-10 mb-3 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">خارج از محدوده (نسخه فعلی)</h3>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl en-text">Multi-workspace tenancy UI (one workspace per user membership), native mobile apps, Kubernetes/GitHub Actions (not present in-repo — recommended in §6), public API keys/third-party webhooks, and stored card/bank integrations (cash is recorded, not collected).</p>
+        <p class="text-ink/70 text-sm leading-relaxed max-w-2xl fa-text hidden" style="font-family:'El Messiri',sans-serif;">رابط چند-workspace (هر کاربر عضو یک workspace است)، اپلیکیشن موبایل بومی، Kubernetes/GitHub Actions (در repo موجود نیست — پیشنهاد در بخش ۶)، کلید API عمومی/webhook شخص‌ثالث، و یکپارچگی کارت/حساب بانکی ذخیره‌شده (نقد ثبت می‌شود، جمع‌آوری نمی‌شود).</p>
+
+        <!-- Tech stack -->
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Tech Stack (as implemented)</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری‌ها (پیاده‌سازی‌شده)</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[540px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Layer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لایه</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Technology</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فناوری</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Frontend</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">React 18, TypeScript 5.7, Vite 6, React Router 7, Tailwind 3.4</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Recharts 3, Lucide, jalaali-js</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Recharts 3، Lucide، jalaali-js</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Backend</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Python 3.12, FastAPI 0.115, Uvicorn</td><td class="px-4 py-3 text-ink/60"><span class="en-text">SQLAlchemy 2 async, Alembic, Pydantic v2</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">SQLAlchemy 2 async، Alembic، Pydantic v2</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Auth</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">python-jose, passlib/bcrypt</td><td class="px-4 py-3 text-ink/60"><span class="en-text">JWT HS256, bcrypt hashing</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">JWT HS256، هش bcrypt</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Database</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">PostgreSQL 15 Alpine</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Compose-managed, UUID v4 primary keys</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت‌شده با Compose، کلید اصلی UUID v4</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Dev orchestration</td><td class="px-4 py-3 text-ink/80 font-mono text-xs">Docker Compose</td><td class="px-4 py-3 text-ink/60"><span class="en-text">Bind-mounts, healthcheck</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">bind-mount، healthcheck</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 002 ARCHITECTURE ========== -->
+      <div id="view-002" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="002" data-icon="fa-diagram-project"
+             data-title-en="Architecture &amp; Design" data-title-fa="معماری و طراحی"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">
+          BudgetBox is <span class="text-ink font-medium">not microservices</span>. One ASGI app (<code class="text-xs">app.main:app</code>) owns auth, boxes, treasury, projects, and team. Isolation is layered, not networked: transport → API → schema → service → model → core. <strong class="text-ink">Hard rule:</strong> if a financial change is possible by editing only an endpoint file, layering is broken. The frontend mirrors the same idea — pages → hooks → <code class="text-xs">services/api.ts</code> → FastAPI, with components never calling fetch directly.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          BudgetBox <span class="text-ink font-medium">میکروسرویس نیست</span>. یک اپلیکیشن ASGI (<code class="text-xs">app.main:app</code>) مسئول auth، باکس‌ها، خزانه، پروژه‌ها و تیم است. جداسازی لایه‌ای است نه شبکه‌ای: transport ← API ← schema ← service ← model ← core. <strong class="text-ink">قانون سخت:</strong> اگر یک تغییر مالی فقط با ویرایش فایل endpoint ممکن باشد، لایه‌بندی نقض شده است. فرانت‌اند همان الگو را دارد — pages ← hooks ← <code class="text-xs">services/api.ts</code> ← FastAPI، بدون فراخوانی مستقیم fetch در کامپوننت‌ها.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">High-Level Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری سطح بالا</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+flowchart LR
+  subgraph Client
+    SPA["React 18 SPA
+Vite :5173
+Tailwind claymorphic UI"]
+  end
+
+  subgraph Edge
+    Proxy["Vite dev proxy /api → :8000
+or reverse proxy in prod"]
+  end
+
+  subgraph App["FastAPI monolith :8000"]
+    MW["CORS + OAuth2 Bearer"]
+    R["APIRouter /api/v1"]
+    S["Services
+Box / Treasury / Project
+Transaction / Team / User"]
+    UoW["UnitOfWork
+explicit commit"]
+  end
+
+  subgraph Data
+    PG[("PostgreSQL 15
+budgetbox")]
+  end
+
+  SPA -->|"JSON + JWT"| Proxy --> MW --> R --> S --> UoW --> PG
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Request Lifecycle — Money Write</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">چرخه درخواست — نوشتن مالی</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant SPA as React SPA
+    participant API as FastAPI endpoint
+    participant Sch as Pydantic schema
+    participant Svc as TreasuryService
+    participant DB as PostgreSQL
+
+    User->>SPA: Deposit / Allocate / Withdraw
+    SPA->>API: POST /api/v1/treasury/... + Bearer
+    API->>API: get_current_user + require_editor
+    API->>Sch: TreasuryDepositRequest / WithdrawRequest
+    alt validation fail
+        Sch-->>SPA: 422 Unprocessable Entity
+    end
+    API->>Svc: deposit() / withdraw()
+    Svc->>DB: SELECT workspace_wallets FOR UPDATE
+    Svc->>DB: INSERT treasury_transactions (+ optional box txs)
+    Svc->>DB: UnitOfWork.commit()
+    Svc-->>SPA: 201 TreasuryTransactionRead
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Frontend Information Architecture</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">معماری اطلاعاتی فرانت‌اند</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Route</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Page</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role gate (UI)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت نقش</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">/login</td><td class="px-4 py-3 text-ink/70">LoginPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Guest only</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فقط مهمان</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">/dashboard</td><td class="px-4 py-3 text-ink/70">DashboardPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member; FAB for admin/editor</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو؛ FAB برای admin/editor</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">/boxes</td><td class="px-4 py-3 text-ink/70">BoxesPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">/boxes/:boxId</td><td class="px-4 py-3 text-ink/70">BoxDetailPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member; edit/members/delete = admin</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو؛ ویرایش/اعضا/حذف = admin</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">/projects</td><td class="px-4 py-3 text-ink/70">ProjectsPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member; create = admin/editor</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو؛ ایجاد = admin/editor</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">/projects/:projectId</td><td class="px-4 py-3 text-ink/70">ProjectDetailPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member; expense/edit = admin/editor</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو؛ هزینه/ویرایش = admin/editor</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">/ledger</td><td class="px-4 py-3 text-ink/70">LedgerPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">/team</td><td class="px-4 py-3 text-ink/70">TeamPage</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Member; mutate = admin</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">عضو؛ تغییر = admin</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-ink/60 text-sm mb-10 en-text">Treasury actions on the dashboard are a speed-dial FAB (<code class="text-xs">BudgetManageToggle</code>): emerald deposit, amber allocate, rose expense.</p>
+        <p class="text-ink/60 text-sm mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;">اقدامات خزانه در داشبورد به‌صورت یک FAB سریع (<code class="text-xs">BudgetManageToggle</code>) است: سبز برای واریز، کهربایی برای تخصیص، صورتی برای هزینه.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Directory / Folder Structure</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساختار پوشه‌ها</h3>
+        <div class="relative">
+          <button onclick="copyBlock('ascii-tree', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i> Copy
+          </button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 sm:p-6 overflow-x-auto text-[12px] sm:text-[13px] leading-relaxed"><code id="ascii-tree">BudgetBox/
+├── backend/
+│   ├── alembic/
+│   │   ├── env.py
+│   │   ├── script.py.mako
+│   │   └── versions/          # schema history (Alembic-only)
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── deps.py        # require_admin / editor / member
+│   │   │   └── v1/
+│   │   │       ├── router.py
+│   │   │       └── endpoints/
+│   │   │           ├── auth.py
+│   │   │           ├── boxes.py
+│   │   │           ├── health.py
+│   │   │           ├── projects.py
+│   │   │           ├── team.py
+│   │   │           ├── transactions.py
+│   │   │           ├── treasury.py
+│   │   │           ├── users.py
+│   │   │           └── workspaces.py
+│   │   ├── core/
+│   │   │   ├── config.py
+│   │   │   ├── database.py
+│   │   │   └── security.py
+│   │   ├── models/            # ORM
+│   │   ├── schemas/           # Pydantic I/O
+│   │   ├── services/          # domain
+│   │   └── main.py
+│   ├── alembic.ini
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── boxes/ dashboard/ layout/ projects/
+│   │   │   └── team/ transactions/ treasury/ ui/
+│   │   ├── hooks/
+│   │   ├── i18n/              # en.json, fa.json
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── types/index.ts
+│   │   ├── utils/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tailwind.config.js
+├── docs/
+│   ├── responsibilities.md
+│   ├── steps-for-develop.md
+│   └── tree.md
+├── docker-compose.yml
+└── full-document.md           # this specification</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Backend Services</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">سرویس‌های بک‌اند</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Service</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Responsibility</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مسئولیت</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">UserService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Register, authenticate, JWT pair, refresh rotation, profile patch</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت‌نام، احراز هویت، جفت JWT، rotation رفرش، ویرایش پروفایل</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">TeamService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Workspace seats (cap 6), roles, create member with credentials</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">صندلی‌های workspace (حداکثر ۶)، نقش‌ها، ساخت عضو با اعتبارنامه</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">BoxService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Box CRUD, per-box member list/add/remove, delete guards</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">CRUD باکس، لیست/افزودن/حذف اعضای باکس، محافظ حذف</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">TransactionService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Box ledger, global ledger, CSV, payouts total, ceiling warnings</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دفتر باکس، دفتر کل، CSV، مجموع پرداخت‌ها، هشدار سقف</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">TransferService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Atomic box↔box transfer (transfer_group_id)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتقال اتمی باکس↔باکس (transfer_group_id)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">TreasuryService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Deposit, withdraw/allocate/payout, summary aggregates</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">واریز، برداشت/تخصیص/پرداخت، تجمیع خلاصه</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">ProjectService</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Project CRUD, hard-delete cascade, P&amp;L, funding, spend-by-box, analytics</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">CRUD پروژه، حذف کامل آبشاری، سود و زیان، تأمین مالی، هزینه به تفکیک باکس، تحلیل</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink en-text">Design System (UI)</h3>
+        <h3 class="font-display text-lg mt-10 mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">سیستم طراحی (UI)</h3>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <span class="inline-flex items-center gap-2 bg-paperdark/60 border border-ink/10 rounded-full pl-1.5 pr-3 py-1.5 text-xs font-mono text-ink/70">
+            <span class="w-5 h-5 rounded-full" style="background:#10b981;"></span>Brand #10b981
+          </span>
+          <span class="inline-flex items-center gap-2 bg-paperdark/60 border border-ink/10 rounded-full pl-1.5 pr-3 py-1.5 text-xs font-mono text-ink/70">
+            <span class="w-5 h-5 rounded-full" style="background:#4332C1;"></span>Hover #4332C1
+          </span>
+          <span class="inline-flex items-center gap-2 bg-paperdark/60 border border-ink/10 rounded-full pl-1.5 pr-3 py-1.5 text-xs font-mono text-ink/70">
+            <span class="w-5 h-5 rounded-full" style="background:#E2E6EE;"></span>Canvas #E2E6EE
+          </span>
+          <span class="inline-flex items-center gap-2 bg-paperdark/60 border border-ink/10 rounded-full pl-1.5 pr-3 py-1.5 text-xs font-mono text-ink/70">
+            <span class="w-5 h-5 rounded-full bg-emerald-500"></span>Deposit
+          </span>
+          <span class="inline-flex items-center gap-2 bg-paperdark/60 border border-ink/10 rounded-full pl-1.5 pr-3 py-1.5 text-xs font-mono text-ink/70">
+            <span class="w-5 h-5 rounded-full bg-amber-500"></span>Allocate
+          </span>
+          <span class="inline-flex items-center gap-2 bg-paperdark/60 border border-ink/10 rounded-full pl-1.5 pr-3 py-1.5 text-xs font-mono text-ink/70">
+            <span class="w-5 h-5 rounded-full bg-rose-500"></span>Expense
+          </span>
+        </div>
+        <p class="text-ink/60 text-sm en-text">Cards use <code class="text-xs">bb-card</code> (white, <code class="text-xs">rounded-[24px|32px]</code>); dashboard summary blends a purple gradient (total budget) with an emerald gradient (operating). Typography: Inter for EN, Rubik for FA (<code class="text-xs">html.font-rubik</code>).</p>
+        <p class="text-ink/60 text-sm fa-text hidden" style="font-family:'El Messiri',sans-serif;">کارت‌ها از <code class="text-xs">bb-card</code> استفاده می‌کنند (سفید، <code class="text-xs">rounded-[24px|32px]</code>)؛ خلاصه داشبورد گرادیان بنفش (کل بودجه) را با گرادیان سبز (جاری) ترکیب می‌کند. تایپوگرافی: Inter برای انگلیسی، Rubik برای فارسی (<code class="text-xs">html.font-rubik</code>).</p>
+      </div>
+
+      <!-- ========== 003 DATABASE SCHEMA ========== -->
+      <div id="view-003" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="003" data-icon="fa-database"
+             data-title-en="Database &amp; Data Modeling" data-title-fa="پایگاه‌داده و مدل‌سازی داده"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">
+          PostgreSQL 15. All money amounts are <code class="text-xs">NUMERIC(12,2)</code>; primary keys are UUID v4.
+          <code class="text-xs">workspace_wallets</code> holds no balance column — it exists solely as a lock row
+          for <code class="text-xs">SELECT … FOR UPDATE</code> serialization. Central and box balances are always
+          derived from the ledgers, never stored as a mutable column.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          PostgreSQL 15. تمام مقادیر پولی <code class="text-xs">NUMERIC(12,2)</code> هستند؛ کلید اصلی UUID v4 است.
+          <code class="text-xs">workspace_wallets</code> هیچ ستون موجودی ندارد — تنها به‌عنوان یک ردیف قفل برای
+          سریال‌سازی <code class="text-xs">SELECT … FOR UPDATE</code> وجود دارد. موجودی مرکزی و باکس همیشه از
+          دفترها مشتق می‌شود، هرگز به‌صورت ستون قابل‌تغییر ذخیره نمی‌شود.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Entity-Relationship Overview</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">نمای کلی روابط موجودیت‌ها</h3>
+        <div class="mermaid-card bg-paperdark/50 border border-ink/5 rounded-xl p-4 sm:p-6 overflow-x-auto mb-10">
+          <pre class="mermaid">
+erDiagram
+  workspaces ||--o{ workspace_members : has
+  users ||--o{ workspace_members : sits_in
+  workspaces ||--o{ boxes : owns
+  workspaces ||--o{ projects : owns
+  workspaces ||--|| workspace_wallets : locks
+  workspaces ||--o{ treasury_transactions : ledger
+  users ||--o{ boxes : owns
+  boxes ||--o{ box_members : roster
+  users ||--o{ box_members : assigned
+  projects ||--o{ project_boxes : links
+  boxes ||--o{ project_boxes : funds
+  boxes ||--o{ transactions : entries
+  projects ||--o{ transactions : tagged
+  users ||--o{ transactions : created
+  users ||--o{ refresh_tokens : sessions
+  users ||--o{ payouts : credited
+  boxes ||--o{ payouts : sourced
+          </pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Data-Flow Explanation</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح جریان داده</h3>
+        <ol class="space-y-3 max-w-2xl mb-10">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Identity</span> — <code class="text-xs">users</code> + hashed password; session = <code class="text-xs">refresh_tokens</code> (SHA-256 of refresh JWT).</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">هویت</span> — <code class="text-xs">users</code> + رمز هش‌شده؛ نشست = <code class="text-xs">refresh_tokens</code> (SHA-256 توکن رفرش).</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Tenancy</span> — <code class="text-xs">workspaces</code> + <code class="text-xs">workspace_members.role</code>; all boxes/projects inherit <code class="text-xs">workspace_id</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">Tenancy</span> — <code class="text-xs">workspaces</code> + <code class="text-xs">workspace_members.role</code>؛ همه باکس‌ها/پروژه‌ها از <code class="text-xs">workspace_id</code> ارث می‌برند.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Envelopes</span> — <code class="text-xs">boxes.budget_limit = 0</code> means unlimited; <code class="text-xs">box_members</code> is the assigned roster, not the whole workspace.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">پاکت‌ها</span> — <code class="text-xs">boxes.budget_limit = 0</code> یعنی نامحدود؛ <code class="text-xs">box_members</code> فقط roster تخصیص‌یافته است.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Central cash</span> — <code class="text-xs">workspace_wallets</code> is a lock row only; balance is computed from <code class="text-xs">treasury_transactions</code>.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">نقد مرکزی</span> — <code class="text-xs">workspace_wallets</code> فقط ردیف قفل است؛ موجودی از <code class="text-xs">treasury_transactions</code> محاسبه می‌شود.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">05</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Box cash</span> — computed from <code class="text-xs">transactions</code> where <code class="text-xs">box_id</code> is set.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">نقد باکس</span> — از <code class="text-xs">transactions</code> که <code class="text-xs">box_id</code> دارند محاسبه می‌شود.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">06</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Projects</span> — <code class="text-xs">project_boxes</code> optional; treasury project expenses do not require a linked box.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">پروژه‌ها</span> — <code class="text-xs">project_boxes</code> اختیاری است؛ هزینه پروژه در خزانه نیازی به باکس متصل ندارد.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">07</span><span class="text-ink/75 text-sm leading-relaxed en-text"><span class="text-ink font-medium">Payouts</span> — split box withdrawal creates one <code class="text-xs">payouts</code> row per recipient; dashboard "your share" sums these.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;"><span class="text-ink font-medium">پرداخت‌ها</span> — برداشت تقسیم‌شده یک ردیف <code class="text-xs">payouts</code> به ازای هر گیرنده می‌سازد؛ «سهم شما» جمع این‌هاست.</span></li>
+        </ol>
+
+        <div id="db-filters" class="flex flex-wrap gap-2 mb-5"></div>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Field</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فیلد</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Type</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نوع</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Constraints</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">محدودیت‌ها</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody id="db-tbody" class="bg-charcoal2"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 004 API REFERENCE ========== -->
+      <div id="view-004" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="004" data-icon="fa-plug"
+             data-title-en="API / Interface Reference" data-title-fa="مرجع API"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-2 en-text">
+          Base URL (local): <code class="text-xs">http://127.0.0.1:8000</code> — Versioned prefix:
+          <code class="text-xs">/api/v1</code> — OpenAPI: <code class="text-xs">GET /api/v1/openapi.json</code>.
+          Unless noted, endpoints require <code class="text-xs">Authorization: Bearer &lt;access_token&gt;</code>.
+        </p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">
+          آدرس پایه (محلی): <code class="text-xs">http://127.0.0.1:8000</code> — پیشوند نسخه:
+          <code class="text-xs">/api/v1</code> — OpenAPI: <code class="text-xs">GET /api/v1/openapi.json</code>.
+          مگر ذکر شده، تمام endpointها به <code class="text-xs">Authorization: Bearer &lt;access_token&gt;</code> نیاز دارند.
+        </p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">HTTP Status Contract</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">قرارداد کد وضعیت HTTP</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[420px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Code</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Meaning</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معنا</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">200 / 201 / 204</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Read/patch success, created, delete/logout (no body)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">موفقیت خواندن/patch، ساخته‌شد، حذف/خروج (بدون بدنه)</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">400</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Business rule (insufficient funds, owner remove, delete blocked)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">قانون کسب‌وکار (موجودی ناکافی، حذف مالک، حذف مسدود)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">401 / 403</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Missing/invalid token, or authenticated with insufficient role / inactive user</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن نامعتبر، یا نقش ناکافی / کاربر غیرفعال</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">404 / 409</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Resource not in workspace / conflict (e.g. unlinked box historically)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">منبع در workspace نیست / تعارض</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">422 / 503</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Pydantic validation / <code class="text-xs">/health</code> database down</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعتبارسنجی Pydantic / خرابی دیتابیس در <code class="text-xs">/health</code></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Endpoint Catalog</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فهرست Endpointها</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[620px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Method</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Path</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Role</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Description</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیح</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/auth/register</td><td class="px-4 py-3 text-ink/60">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Create user</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ساخت کاربر</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/auth/login</td><td class="px-4 py-3 text-ink/60">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">OAuth2 password form</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">فرم OAuth2</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/auth/refresh, /auth/logout</td><td class="px-4 py-3 text-ink/60">—</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Rotate / revoke refresh token</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">rotation / لغو توکن رفرش</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/auth/me, /users/me</td><td class="px-4 py-3 text-ink/60">member</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Current user + workspace role / profile</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کاربر جاری + نقش / پروفایل</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET / PATCH / DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink">/team/members{/{id}}</td><td class="px-4 py-3 text-ink/60">member / admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Roster, role change, remove seat</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">roster، تغییر نقش، حذف صندلی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET / POST / PATCH / DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink">/boxes{/{id}}</td><td class="px-4 py-3 text-ink/60">member / admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List, create, update (incl. budget_limit), hard delete if empty</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لیست، ایجاد، به‌روزرسانی (شامل budget_limit)، حذف کامل اگر خالی</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/boxes/{id}/transfers</td><td class="px-4 py-3 text-ink/60">editor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Atomic box↔box transfer</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">انتقال اتمی بین باکس‌ها</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET / POST / DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink">/boxes/{id}/members{/{userId}}</td><td class="px-4 py-3 text-ink/60">member / admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Roster, bulk assign, unassign (not owner)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">roster، تخصیص گروهی، لغو تخصیص (به‌جز مالک)</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/treasury/summary</td><td class="px-4 py-3 text-ink/60">member</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Operating / allocated / total</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جاری / تخصیص‌یافته / کل</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/treasury/deposit</td><td class="px-4 py-3 text-ink/60">editor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Inflow to operating balance</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ورودی به بودجه جاری</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POST</td><td class="px-4 py-3 font-mono text-xs text-ink">/treasury/withdraw</td><td class="px-4 py-3 text-ink/60">editor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Allocate, expense, return, payout</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تخصیص، هزینه، بازگشت، پرداخت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET / POST / PATCH / DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink">/transactions{/{id}}</td><td class="px-4 py-3 text-ink/60">member / editor</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Paginated ledger, create/update/delete box entry</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">دفتر صفحه‌بندی‌شده، ایجاد/ویرایش/حذف ورودی باکس</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/transactions/export, /transactions/me/payouts</td><td class="px-4 py-3 text-ink/60">member</td><td class="px-4 py-3 text-ink/70"><span class="en-text">CSV export (UTF-8 BOM), personal payout total</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">خروجی CSV، مجموع پرداخت شخصی</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">GET / POST / PATCH / DELETE</td><td class="px-4 py-3 font-mono text-xs text-ink">/projects{/{id}}</td><td class="px-4 py-3 text-ink/60">member / editor / admin</td><td class="px-4 py-3 text-ink/70"><span class="en-text">List, create, update, hard delete + related txs</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">لیست، ایجاد، ویرایش، حذف کامل + تراکنش‌های مرتبط</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">GET</td><td class="px-4 py-3 font-mono text-xs text-ink">/projects/{id}/pnl, /funding-report, /spend-by-box, /analytics</td><td class="px-4 py-3 text-ink/60">member</td><td class="px-4 py-3 text-ink/70"><span class="en-text">P&amp;L, team vs client split, spend by box, monthly series</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">سود و زیان، تفکیک تیم/مشتری، هزینه به تفکیک باکس، سری ماهانه</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="space-y-10">
+          <div>
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-amber/15 text-amber border border-amber/30 rounded-md px-2.5 py-1">POST</span>
+              <code class="font-mono text-sm text-ink">/api/v1/treasury/withdraw</code>
+            </div>
+            <p class="text-sm text-ink/65 mb-3 en-text">Allocate — transfer budget to a box (amber FAB):</p>
+            <p class="text-sm text-ink/65 mb-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">تخصیص — انتقال بودجه به یک باکس (FAB کهربایی):</p>
+            <div class="relative mb-4">
+              <button onclick="copyBlock('allocate-json', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+              <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="allocate-json">{
+  "amount": "2000000",
+  "source_type": "central_wallet",
+  "destination_type": "box_allocation",
+  "target_box_id": "..."
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-sage/15 text-sage border border-sage/30 rounded-md px-2.5 py-1">POST</span>
+              <code class="font-mono text-sm text-ink">/api/v1/treasury/withdraw</code>
+            </div>
+            <p class="text-sm text-ink/65 mb-3 en-text">Member payout — from a box; amount is per person, charged × N:</p>
+            <p class="text-sm text-ink/65 mb-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">پرداخت به عضو — از یک باکس؛ مبلغ به‌ازای هر نفر، ضربدر N کسر می‌شود:</p>
+            <pre class="bg-charcoal rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="payout-json">{
+  "amount": "500000",
+  "source_type": "box",
+  "source_box_id": "...",
+  "destination_type": "member_payout",
+  "split_to_user_ids": ["...", "..."]
+}</code></pre>
+            <p class="text-ink/60 text-sm mt-3 en-text">Insufficient funds → <code class="text-xs">400</code>.</p>
+            <p class="text-ink/60 text-sm mt-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">موجودی ناکافی ← <code class="text-xs">400</code>.</p>
+          </div>
+
+          <div class="pt-8 border-t border-ink/10">
+            <div class="flex items-center gap-3 flex-wrap mb-3">
+              <span class="font-mono text-xs font-bold bg-rust/15 text-rust border border-rust/30 rounded-md px-2.5 py-1">GET</span>
+              <code class="font-mono text-sm text-ink">/treasury/summary</code>
+            </div>
+            <pre class="bg-charcoal rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="summary-json">{
+  "current_operating_balance": "50000000",
+  "allocated_box_balances_total": "12000000",
+  "total_workspace_budget": "62000000",
+  "inflow_total": "80000000"
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 005 CONFIGURATION ========== -->
+      <div id="view-005" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="005" data-icon="fa-sliders"
+             data-title-en="Configuration &amp; Environment" data-title-fa="پیکربندی و محیط"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 en-text">Backend config is loaded by <code class="text-xs">app.core.config.Settings</code> (pydantic-settings) from <code class="text-xs">backend/.env</code>. Extra env keys are ignored. Computed <code class="text-xs">database_url</code> = <code class="text-xs">postgresql+asyncpg://USER:PASS@HOST:PORT/DB</code>; engine uses <code class="text-xs">pool_pre_ping=True</code>, <code class="text-xs">echo=settings.debug</code>.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-6 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">تنظیمات بک‌اند از طریق <code class="text-xs">app.core.config.Settings</code> (pydantic-settings) از <code class="text-xs">backend/.env</code> بارگذاری می‌شود. کلیدهای اضافی نادیده گرفته می‌شوند. <code class="text-xs">database_url</code> محاسبه‌شده: <code class="text-xs">postgresql+asyncpg://USER:PASS@HOST:PORT/DB</code>؛ موتور از <code class="text-xs">pool_pre_ping=True</code> و <code class="text-xs">echo=settings.debug</code> استفاده می‌کند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Backend Environment Variables</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">متغیرهای محیطی بک‌اند</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[640px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Default</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پیش‌فرض</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Production requirement</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">الزام تولید</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">ENVIRONMENT</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">local</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Set <code class="text-xs">production</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">تنظیم <code class="text-xs">production</code></span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">DEBUG</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">true</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><strong>false</strong> — disables SQL echo</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><strong>false</strong> — غیرفعال کردن echo کوئری</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">SECRET_KEY</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">change-me-in-production</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Cryptographically random ≥ 32 bytes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">رشته تصادفی رمزنگارانه ≥ ۳۲ بایت</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">ACCESS_TOKEN_EXPIRE_MINUTES</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">15</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Keep short</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">کوتاه نگه دارید</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">REFRESH_TOKEN_EXPIRE_DAYS</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">7</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Align with policy</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مطابق سیاست</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">POSTGRES_USER / PASSWORD / DB</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">budgetbox</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Dedicated role, strong secret, isolated DB</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نقش اختصاصی، رمز قوی، دیتابیس مجزا</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">POSTGRES_HOST / PORT</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">localhost / 5432</td><td class="px-4 py-3 text-ink/70"><span class="en-text">In Compose: <code class="text-xs">postgres</code>; local host map <code class="text-xs">5434:5432</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">در Compose: <code class="text-xs">postgres</code>؛ نگاشت محلی <code class="text-xs">5434:5432</code></span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">CORS_ORIGINS</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">["http://localhost:5173"]</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Exact SPA origins, no <code class="text-xs">*</code> with credentials</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">origin دقیق SPA، بدون <code class="text-xs">*</code> با credentials</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Frontend &amp; Local Ports</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">فرانت‌اند و پورت‌های محلی</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-6">
+          <table class="w-full text-left border-collapse min-w-[480px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Variable / Process</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Value</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مقدار</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">VITE_API_URL</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">/api/v1</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Same-origin in Vite (proxy); production: <code class="text-xs">https://api.example.com/api/v1</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هم‌مبدأ در Vite؛ تولید: <code class="text-xs">https://api.example.com/api/v1</code></span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Vite SPA</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">5173</td><td class="px-4 py-3 text-ink/70"><span class="en-text">strict port</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پورت ثابت</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Uvicorn</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">8000</td><td class="px-4 py-3 text-ink/70">—</td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Postgres (host)</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">5434 → 5432</td><td class="px-4 py-3 text-ink/70"><span class="en-text">container port</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">پورت کانتینر</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-ink/60 text-sm mb-10 en-text">Tokens are stored in <strong>localStorage</strong>: <code class="text-xs">budgetbox.token</code> (access JWT), <code class="text-xs">budgetbox.refresh</code> (refresh JWT). The SPA silently calls <code class="text-xs">POST /auth/refresh</code> on 401 and retries once.</p>
+        <p class="text-ink/60 text-sm mb-10 fa-text hidden" style="font-family:'El Messiri',sans-serif;">توکن‌ها در <strong>localStorage</strong> ذخیره می‌شوند: <code class="text-xs">budgetbox.token</code> (JWT دسترسی)، <code class="text-xs">budgetbox.refresh</code> (JWT رفرش). SPA به‌طور خودکار روی ۴۰۱، <code class="text-xs">POST /auth/refresh</code> را فراخوانی و یکبار retry می‌کند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Docker Compose Environment</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">محیط Docker Compose</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Service</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Notes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توضیحات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">postgres</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">POSTGRES_*</code> as above; volume <code class="text-xs">budgetbox_pgdata</code>; healthcheck <code class="text-xs">pg_isready</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">POSTGRES_*</code> مطابق بالا؛ volume با نام <code class="text-xs">budgetbox_pgdata</code>؛ healthcheck با <code class="text-xs">pg_isready</code></span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">backend</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">env_file: ./backend/.env</code> plus <code class="text-xs">POSTGRES_HOST=postgres</code>, <code class="text-xs">POSTGRES_PORT=5432</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">env_file: ./backend/.env</code> به‌همراه <code class="text-xs">POSTGRES_HOST=postgres</code> و <code class="text-xs">POSTGRES_PORT=5432</code></span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">frontend</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Bind-mount source; anonymous volume for <code class="text-xs">node_modules</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">bind-mount سورس؛ volume ناشناس برای <code class="text-xs">node_modules</code></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== 006 DEPLOYMENT ========== -->
+      <div id="view-006" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="006" data-icon="fa-rocket"
+             data-title-en="Deployment &amp; DevOps" data-title-fa="استقرار و DevOps"></div>
+
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 en-text">There is <strong class="text-ink">no in-repo Dockerfile or GitHub Actions workflow</strong> today. Development uses <code class="text-xs">docker-compose.yml</code> with official images and bind mounts (hot reload). Production containerization and CI/CD are recommended targets, documented below but not yet present in the repository.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;">در حال حاضر <strong class="text-ink">هیچ Dockerfile یا GitHub Actions در repo وجود ندارد</strong>. توسعه با <code class="text-xs">docker-compose.yml</code> و ایمیج‌های رسمی و bind mount (hot reload) انجام می‌شود. کانتینرسازی تولید و CI/CD در زیر پیشنهاد شده‌اند اما هنوز در repo نیستند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Start Stack</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">راه‌اندازی استک</h3>
+        <div class="relative mb-8">
+          <button onclick="copyBlock('start-stack', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="start-stack">docker compose up -d postgres
+# wait healthy
+docker compose up backend frontend
+
+# native local
+cd backend && python -m venv .venv && pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+cd frontend && npm install && npm run dev</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Build Scripts</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">اسکریپت‌های ساخت</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[520px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Command</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Meaning</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">معنا</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">npm run build</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">tsc --noEmit &amp;&amp; vite build</code> → <code class="text-xs">frontend/dist</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">tsc --noEmit &amp;&amp; vite build</code> ← <code class="text-xs">frontend/dist</code></span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust text-xs">npm run preview</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Serve production bundle</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اجرای bundle تولید</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust text-xs">alembic upgrade head</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Apply migrations</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اعمال migration‌ها</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust text-xs">alembic revision -m "…"</td><td class="px-4 py-3 text-ink/70"><span class="en-text">New revision — never hand-edit prod schema</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">نسخه جدید — هرگز schema تولید را دستی ویرایش نکنید</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Recommended Production Images (not yet in repo)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایمیج‌های تولید پیشنهادی (هنوز در repo نیست)</h3>
+        <div class="relative mb-8">
+          <button onclick="copyBlock('backend-dockerfile', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="backend-dockerfile">FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV DEBUG=false ENVIRONMENT=production
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]</code></pre>
+        </div>
+
+        <div class="relative mb-8">
+          <button onclick="copyBlock('frontend-dockerfile', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="frontend-dockerfile">FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY . .
+ARG VITE_API_URL=/api/v1
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf</code></pre>
+        </div>
+        <p class="text-ink/60 text-sm mb-8 en-text">Nginx must: serve the SPA fallback (<code class="text-xs">try_files $uri /index.html</code>), reverse-proxy <code class="text-xs">/api/</code> to the FastAPI service, and set <code class="text-xs">Content-Security-Policy</code> with TLS terminated at the edge.</p>
+        <p class="text-ink/60 text-sm mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;">Nginx باید: fallback مربوط به SPA را سرو کند (<code class="text-xs">try_files $uri /index.html</code>)، مسیر <code class="text-xs">/api/</code> را reverse-proxy به سرویس FastAPI کند، و <code class="text-xs">Content-Security-Policy</code> را با TLS در edge تنظیم کند.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">CI/CD (GitHub Actions — to add)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">CI/CD (GitHub Actions — به‌زودی)</h3>
+        <p class="text-ink/60 text-sm mb-3 en-text">Conceptual pipeline — not present in the repository today:</p>
+        <p class="text-ink/60 text-sm mb-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">پایپ‌لاین مفهومی — امروز در repo موجود نیست:</p>
+        <div class="relative mb-8">
+          <button onclick="copyBlock('ci-yaml', this)" class="copy-btn absolute top-3 right-3 z-10 font-mono text-[11px] bg-paper/10 hover:bg-paper/20 text-paper px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy</button>
+          <pre class="bg-charcoal text-paper/90 rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed"><code id="ci-yaml">name: ci
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: budgetbox
+          POSTGRES_PASSWORD: budgetbox
+          POSTGRES_DB: budgetbox
+        ports: ["5432:5432"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r backend/requirements.txt
+      - run: alembic upgrade head
+        working-directory: backend
+        env:
+          POSTGRES_HOST: localhost
+      # add pytest when a test suite lands
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm ci && npm run build
+        working-directory: frontend</code></pre>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Release Sequence</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">توالی انتشار</h3>
+        <ol class="space-y-3 max-w-2xl mb-8">
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">01</span><span class="text-ink/75 text-sm leading-relaxed en-text">Merge to main after CI green.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">merge به main پس از سبز شدن CI.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">02</span><span class="text-ink/75 text-sm leading-relaxed en-text">Run <code class="text-xs">alembic upgrade head</code> against the target database before flipping traffic if the new code requires new columns.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">اجرای <code class="text-xs">alembic upgrade head</code> روی دیتابیس هدف قبل از تغییر ترافیک، اگر ستون جدید نیاز است.</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">03</span><span class="text-ink/75 text-sm leading-relaxed en-text">Deploy API, then SPA (or same release if API remains backward compatible).</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">استقرار API سپس SPA (یا یک‌جا اگر API سازگار با نسخه قبل بماند).</span></li>
+          <li class="flex gap-3"><span class="font-mono text-rust text-sm font-bold shrink-0">04</span><span class="text-ink/75 text-sm leading-relaxed en-text">Smoke test: <code class="text-xs">GET /health</code>, login, treasury summary, create box with unlimited ceiling.</span><span class="text-ink/75 text-sm leading-relaxed fa-text hidden" style="font-family:'El Messiri',sans-serif;">تست دود: <code class="text-xs">GET /health</code>، ورود، خلاصه خزانه، ساخت باکس با سقف نامحدود.</span></li>
+        </ol>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Kubernetes Sketch (future)</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">طرح Kubernetes (آینده)</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10">
+          <table class="w-full text-left border-collapse min-w-[520px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Object</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Intent</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">هدف</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Deployment API</td><td class="px-4 py-3 text-ink/70"><span class="en-text">2+ replicas, probes on /health</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">۲+ replica، probe روی /health</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">StatefulSet / RDS</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Managed Postgres — do not run in-cluster without ops ownership</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Postgres مدیریت‌شده — بدون مالکیت عملیاتی داخل کلاستر اجرا نشود</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">HPA</td><td class="px-4 py-3 text-ink/70"><span class="en-text">CPU on API after load testing treasury locks</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">CPU روی API پس از تست بار قفل‌های خزانه</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-ink/60 text-sm mt-3 en-text">Treasury uses row locks; horizontal scale is fine, but a single Postgres writer is the bottleneck. Do not shard <code class="text-xs">treasury_transactions</code> without a new design.</p>
+        <p class="text-ink/60 text-sm mt-3 fa-text hidden" style="font-family:'El Messiri',sans-serif;">خزانه از قفل ردیف استفاده می‌کند؛ مقیاس افقی مشکلی ندارد اما یک writer واحد Postgres گلوگاه است. <code class="text-xs">treasury_transactions</code> را بدون طراحی جدید shard نکنید.</p>
+      </div>
+
+      <!-- ========== 007 SECURITY & FAQ ========== -->
+      <div id="view-007" class="view hidden p-6 sm:p-8 md:p-12">
+        <div class="chapter-head" data-num="007" data-icon="fa-shield-halved"
+             data-title-en="Security &amp; Error Handling" data-title-fa="امنیت و مدیریت خطا"></div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Authentication</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">احراز هویت</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Mechanism</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Detail</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جزئیات</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Password</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">passlib bcrypt (bcrypt==4.0.1 pinned)</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Access token</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">JWT HS256, 15 min, type=access, sub=user_id</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">Refresh token</td><td class="px-4 py-3 text-ink/70 font-mono text-xs">JWT HS256, 7 days, jti unique, SHA-256 hash stored</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">Rotation / Revocation</td><td class="px-4 py-3 text-ink/70"><span class="en-text"><code class="text-xs">/auth/refresh</code> issues a new pair; <code class="text-xs">/auth/logout</code> sets <code class="text-xs">is_revoked</code></span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;"><code class="text-xs">/auth/refresh</code> جفت جدید صادر می‌کند؛ <code class="text-xs">/auth/logout</code> مقدار <code class="text-xs">is_revoked</code> را تنظیم می‌کند</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">Inactive users</td><td class="px-4 py-3 text-ink/70"><span class="en-text">Login 403; <code class="text-xs">get_current_user</code> rejects inactive</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ورود ۴۰۳؛ <code class="text-xs">get_current_user</code> کاربر غیرفعال را رد می‌کند</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">RBAC Matrix</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ماتریس RBAC</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-8">
+          <table class="w-full text-left border-collapse min-w-[520px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Action</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">اقدام</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Viewer</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Editor</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Admin</th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70"><span class="en-text">Read dashboard / ledger / analytics</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مشاهده داشبورد/دفتر/تحلیل</span></td><td class="px-4 py-3 text-sage">✓</td><td class="px-4 py-3 text-sage">✓</td><td class="px-4 py-3 text-sage">✓</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70"><span class="en-text">Deposit / allocate / withdraw</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">واریز/تخصیص/برداشت</span></td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-sage">✓</td><td class="px-4 py-3 text-sage">✓</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70"><span class="en-text">Create project / record expense</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد پروژه/ثبت هزینه</span></td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-sage">✓</td><td class="px-4 py-3 text-sage">✓</td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 text-ink/70"><span class="en-text">Create/update/delete box</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ایجاد/ویرایش/حذف باکس</span></td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-sage">✓</td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 text-ink/70"><span class="en-text">Manage box members / team seats</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدیریت اعضای باکس/صندلی تیم</span></td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-sage">✓</td></tr>
+              <tr><td class="px-4 py-3 text-ink/70"><span class="en-text">Hard-delete project</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">حذف کامل پروژه</span></td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-ink/30">—</td><td class="px-4 py-3 text-sage">✓</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Known Residual Risks</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">ریسک‌های باقی‌مانده شناخته‌شده</h3>
+        <div class="overflow-x-auto rounded-xl border border-ink/10 mb-10">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead><tr class="bg-charcoal text-paper">
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">ID</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Risk</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ریسک</span></th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase">Severity</th>
+              <th class="px-4 py-3 font-mono text-[11px] tracking-widest uppercase"><span class="en-text">Mitigation</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">راهکار</span></th>
+            </tr></thead>
+            <tbody class="bg-charcoal2 text-sm">
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">S1</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Access JWT in localStorage (XSS)</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">JWT دسترسی در localStorage (XSS)</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Strict CSP, no dangerouslySetInnerHTML; consider httpOnly cookies later</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">CSP سخت‌گیرانه، بدون dangerouslySetInnerHTML؛ بعداً httpOnly cookie</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">S2</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Default SECRET_KEY</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">SECRET_KEY پیش‌فرض</span></td><td class="px-4 py-3"><span class="badge-critical text-xs font-mono font-bold px-2 py-0.5 rounded-full">CRITICAL</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Fail boot in production if key is the default</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">توقف boot در production اگر کلید پیش‌فرض است</span></td></tr>
+              <tr class="border-b border-ink/5"><td class="px-4 py-3 font-mono text-rust">S3</td><td class="px-4 py-3 text-ink/80"><span class="en-text">Compose uses --reload and pip-on-start</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">Compose از --reload و pip-on-start استفاده می‌کند</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Replace with baked images</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">جایگزینی با ایمیج‌های از پیش ساخته‌شده</span></td></tr>
+              <tr class="border-b border-ink/5 bg-ink/[0.02]"><td class="px-4 py-3 font-mono text-rust">S4</td><td class="px-4 py-3 text-ink/80"><span class="en-text">No rate limiting on /auth/login</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون محدودیت نرخ روی /auth/login</span></td><td class="px-4 py-3"><span class="badge-medium text-xs font-mono font-bold px-2 py-0.5 rounded-full">MEDIUM</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Add gateway / SlowAPI</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">افزودن gateway یا SlowAPI</span></td></tr>
+              <tr><td class="px-4 py-3 font-mono text-rust">S5</td><td class="px-4 py-3 text-ink/80"><span class="en-text">No audit log table</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">بدون جدول audit log</span></td><td class="px-4 py-3"><span class="badge-low text-xs font-mono font-bold px-2 py-0.5 rounded-full">LOW</span></td><td class="px-4 py-3 text-ink/70"><span class="en-text">Emit append-only audit for deletes and role changes</span><span class="fa-text hidden" style="font-family:'El Messiri',sans-serif;">ثبت audit فقط-افزوده برای حذف‌ها و تغییر نقش</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="font-display text-lg mb-4 text-ink en-text">Error Handling Model</h3>
+        <h3 class="font-display text-lg mb-4 text-ink fa-text hidden" style="font-family:'El Messiri',sans-serif;">مدل مدیریت خطا</h3>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-3 en-text"><strong class="text-ink">Backend</strong> — Pydantic → FastAPI 422 with <code class="text-xs">{ "detail": [ { "loc", "msg", "type" } ] }</code>. Business <code class="text-xs">HTTPException(detail=str)</code> → <code class="text-xs">{ "detail": "…" }</code>. <code class="text-xs">get_db</code> rolls back on exception and always closes the session; services call <code class="text-xs">UnitOfWork.commit()</code> on success (explicit, not implicit).</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-8 fa-text hidden" style="font-family:'El Messiri',sans-serif;line-height:2;"><strong class="text-ink">بک‌اند</strong> — Pydantic ← FastAPI 422 با <code class="text-xs">{ "detail": [ { "loc", "msg", "type" } ] }</code>. خطای کسب‌وکار <code class="text-xs">HTTPException(detail=str)</code> ← <code class="text-xs">{ "detail": "…" }</code>. <code class="text-xs">get_db</code> در خطا rollback می‌کند و همیشه session را می‌بندد؛ سرویس‌ها در موفقیت <code class="text-xs">UnitOfWork.commit()</code> را صریحاً فراخوانی می‌کنند.</p>
+        <p class="text-ink/75 leading-relaxed max-w-2xl mb-10 en-text"><strong class="text-ink">Frontend</strong> — <code class="text-xs">apiFetch</code> throws <code class="text-xs">ApiError</code>. 401 → refresh → retry; failure clears tokens (back to login). Modals show inline rose banners; destructive deletes also toast.</p>
+
+        <h3 class="font-display text-lg mb-4 text-ink">FAQ</h3>
+        <div id="faq-list" class="space-y-2"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="text-center font-mono text-[11px] text-ink/35 mt-12 en-text">Technical Specification — BudgetBox — production architecture &amp; interface reference · Living document, update in the same PR as schema or public API changes.</p>
+  <p class="text-center text-[11px] text-ink/35 mt-12 fa-text hidden" style="font-family:'El Messiri',sans-serif;">مستند فنی — BudgetBox — معماری تولید و مرجع رابط · سند زنده، در همان PR تغییرات schema یا API عمومی به‌روزرسانی شود.</p>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Language management — reads ?lang= from URL
+  // ---------------------------------------------------------------
+  let currentLang = 'en';
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active-lang', lang === 'en');
+    document.getElementById('btn-fa').classList.toggle('active-lang', lang === 'fa');
+
+    const isRtl = lang === 'fa';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+
+    // Show/hide text
+    document.querySelectorAll('.en-text').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.fa-text').forEach(el => el.classList.toggle('hidden', !isRtl));
+
+    // Update tab titles from data attributes
+    document.querySelectorAll('.chapter-head').forEach(el => {
+      const titleAttr = isRtl ? el.dataset.titleFa : el.dataset.titleEn;
+      if (titleAttr) {
+        const h2 = el.querySelector('h2');
+        if (h2) h2.textContent = titleAttr;
+      }
+    });
+
+    // Rebuild tab labels
+    const tabBtns = document.querySelectorAll('.file-tab');
+    tabBtns.forEach(btn => {
+      const ch = chapters.find(c => c.id === btn.dataset.view);
+      if (!ch) return;
+      const titleEl = btn.querySelector('.tab-title');
+      if (titleEl) titleEl.textContent = isRtl ? ch.titleFa : ch.titleEn;
+    });
+
+    // Update back button
+    const backLabel = document.getElementById('back-label');
+    const backIcon = document.getElementById('back-icon');
+    const eyebrow = document.getElementById('eyebrow-label');
+    const tabHint = document.getElementById('tab-hint');
+    if (isRtl) {
+      backLabel.textContent = 'پورتفولیو';
+      backIcon.className = 'fa-solid fa-arrow-right';
+      eyebrow.textContent = 'کشو ۰۲ — مستندات BudgetBox';
+      if(tabHint) tabHint.textContent = 'روی یک تب کلیک کنید تا آن فصل باز شود.';
+    } else {
+      backLabel.textContent = 'Portfolio';
+      backIcon.className = 'fa-solid fa-arrow-left';
+      eyebrow.textContent = 'Drawer 02 — BudgetBox Documentation';
+      if(tabHint) tabHint.textContent = 'Click a tab to pull that chapter to the front of the folder.';
+    }
+
+    // Update url param without reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url.toString());
+  }
+
+  // ---------------------------------------------------------------
+  // Back button
+  // ---------------------------------------------------------------
+  function goBack() {
+    // Always return to the main portfolio page, preserving the current language
+    window.location.href = '../portfolio.html?lang=' + currentLang;
+  }
+
+  // ---------------------------------------------------------------
+  // Chapter header injector
+  // ---------------------------------------------------------------
+  document.querySelectorAll('.chapter-head').forEach(el => {
+    const num = el.dataset.num;
+    const icon = el.dataset.icon;
+    const titleEn = el.dataset.titleEn || '';
+    const titleFa = el.dataset.titleFa || '';
+    el.className = 'flex items-center gap-4 mb-8 pb-6 border-b border-ink/10';
+    el.innerHTML = `
+      <span class="font-mono text-rust font-bold text-sm bg-rust/10 rounded-lg px-3 py-1.5 shrink-0">${num}</span>
+      <div class="min-w-0">
+        <p class="font-mono text-[10px] tracking-widest uppercase text-ink/40">Chapter</p>
+        <h2 class="font-display text-xl sm:text-2xl md:text-3xl text-ink truncate">${titleEn}</h2>
+      </div>
+      <i class="fa-solid ${icon} text-3xl text-ink/10 ml-auto hidden sm:block shrink-0"></i>
+    `;
+  });
+
+  // ---------------------------------------------------------------
+  // Tab stack
+  // ---------------------------------------------------------------
+  const chapters = [
+    { id: 'cover', num: '',    titleEn: 'Front Cover',                  titleFa: 'صفحه جلد',              icon: 'fa-folder-open' },
+    { id: '001',   num: '001', titleEn: 'System Overview',              titleFa: 'معرفی سیستم',            icon: 'fa-compass' },
+    { id: '002',   num: '002', titleEn: 'Architecture & Design',        titleFa: 'معماری و طراحی',         icon: 'fa-diagram-project' },
+    { id: '003',   num: '003', titleEn: 'Database & Data Modeling',     titleFa: 'پایگاه‌داده و مدل‌سازی',  icon: 'fa-database' },
+    { id: '004',   num: '004', titleEn: 'API / Interface Reference',    titleFa: 'مرجع API',              icon: 'fa-plug' },
+    { id: '005',   num: '005', titleEn: 'Configuration & Environment',  titleFa: 'پیکربندی و محیط',        icon: 'fa-sliders' },
+    { id: '006',   num: '006', titleEn: 'Deployment & DevOps',          titleFa: 'استقرار و DevOps',       icon: 'fa-rocket' },
+    { id: '007',   num: '007', titleEn: 'Security & Error Handling',    titleFa: 'امنیت و مدیریت خطا',     icon: 'fa-shield-halved' },
+  ];
+
+  const tabStack = document.getElementById('tab-stack');
+  chapters.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'file-tab group w-full text-left flex items-center gap-3 pl-6 pr-4 h-16';
+    btn.style.zIndex = String(i + 1);
+    btn.style.marginTop = i === 0 ? '14px' : '6px';
+    btn.dataset.view = ch.id;
+    btn.dataset.z = String(i + 1);
+    btn.innerHTML = `
+      <span class="tab-flag">${ch.num || 'COV'}</span>
+      <i class="tab-icon fa-solid ${ch.icon} text-ink/35 text-sm shrink-0"></i>
+      <span class="tab-title font-sans font-semibold text-sm text-ink/80 truncate">${ch.titleEn}</span>
+    `;
+    btn.addEventListener('click', () => showView(ch.id));
+    tabStack.appendChild(btn);
+  });
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== 'view-' + id));
+    document.querySelectorAll('.file-tab').forEach(t => {
+      const active = t.dataset.view === id;
+      t.classList.toggle('is-active', active);
+      t.style.zIndex = active ? '999' : t.dataset.z;
+    });
+    const panel = document.getElementById('content-panel');
+    panel.classList.remove('animate-fade');
+    void panel.offsetWidth;
+    panel.classList.add('animate-fade');
+    if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------------------------------------------------------
+  // Copy-to-clipboard
+  // ---------------------------------------------------------------
+  function copyBlock(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------
+  // Database schema
+  // ---------------------------------------------------------------
+  const dbSchema = [
+    { table: 'users', fields: [
+      ['id', 'UUID', 'PK, default uuid4', 'User PK'],
+      ['username', 'VARCHAR(64)', 'UNIQUE, NOT NULL, indexed', 'Login identifier'],
+      ['display_name', 'VARCHAR(255)', 'NOT NULL', 'UI name'],
+      ['job_title', 'VARCHAR(120)', 'NULL', 'Optional title'],
+      ['hashed_password', 'VARCHAR(255)', 'NOT NULL', 'bcrypt'],
+      ['is_active', 'BOOLEAN', 'NOT NULL, default true', 'Soft disable'],
+      ['created_at', 'TIMESTAMPTZ', 'NOT NULL, now()', 'Created'],
+    ]},
+    { table: 'refresh_tokens', fields: [
+      ['id', 'UUID', 'PK', 'PK'],
+      ['user_id', 'UUID', 'FK users CASCADE, indexed', 'Owner'],
+      ['jti', 'VARCHAR(64)', 'UNIQUE, indexed', 'JWT id'],
+      ['token', 'VARCHAR(128)', 'NOT NULL', 'SHA-256 of refresh JWT'],
+      ['expires_at', 'TIMESTAMPTZ', 'NOT NULL', 'Expiry'],
+      ['is_revoked', 'BOOLEAN', 'NOT NULL, default false', 'Logout / rotation'],
+    ]},
+    { table: 'workspaces / workspace_members', fields: [
+      ['workspaces.id', 'UUID', 'PK', 'Workspace PK'],
+      ['workspaces.name', 'VARCHAR(120)', 'NOT NULL, default BudgetBox', 'Display name'],
+      ['workspace_members.workspace_id', 'UUID', 'FK CASCADE, indexed', 'Workspace'],
+      ['workspace_members.user_id', 'UUID', 'FK CASCADE, indexed', 'User'],
+      ['workspace_members.role', 'VARCHAR(20)', 'NOT NULL — admin | editor | viewer', 'Role'],
+      ['(workspace_id, user_id)', 'UNIQUE', 'Seat cap 6 enforced in TeamService', 'One seat per user per workspace'],
+    ]},
+    { table: 'boxes / box_members', fields: [
+      ['boxes.id', 'UUID', 'PK', 'Box PK'],
+      ['boxes.name', 'VARCHAR(120)', 'NOT NULL', 'Envelope name'],
+      ['boxes.budget_limit', 'NUMERIC(12,2)', 'NOT NULL, ≥ 0 — 0 = unlimited', 'Ceiling'],
+      ['boxes.is_archived', 'BOOLEAN', 'indexed', 'Hidden from default lists'],
+      ['boxes.owner_id', 'UUID', 'FK users RESTRICT', 'Creator'],
+      ['box_members.box_id / user_id', 'UUID', 'UNIQUE (box_id, user_id)', 'Assigned roster — owner cannot be removed'],
+    ]},
+    { table: 'projects / project_boxes', fields: [
+      ['projects.id', 'UUID', 'PK', 'Project PK'],
+      ['projects.name / client_name', 'VARCHAR', 'NOT NULL', 'Project + client'],
+      ['projects.approved_budget', 'NUMERIC(12,2)', 'NOT NULL, ≥ 0', 'Approved spend'],
+      ['projects.funding_source', 'VARCHAR(32)', 'team_budget | client_income', 'Snapshot enum'],
+      ['projects.status', 'VARCHAR(20)', 'default active', 'draft | active | on_hold | completed | cancelled'],
+      ['project_boxes (project_id, box_id)', 'UUID pair', 'UNIQUE', 'Linked funding boxes'],
+    ]},
+    { table: 'transactions (box ledger)', fields: [
+      ['box_id', 'UUID', 'FK CASCADE, indexed', 'Envelope'],
+      ['project_id', 'UUID', 'FK SET NULL, indexed', 'Optional P&L tag'],
+      ['transfer_group_id', 'UUID', 'indexed, NULL', 'Paired transfer'],
+      ['amount', 'NUMERIC(12,2)', 'NOT NULL', 'Absolute amount'],
+      ['type', 'VARCHAR enum', 'income | expense', 'Direction'],
+      ['category', 'VARCHAR(80)', 'NULL — e.g. allocation_in', 'Category tag'],
+      ['occurred_at', 'TIMESTAMPTZ', 'NOT NULL, composite index with box_id / project_id', 'Event time'],
+    ]},
+    { table: 'workspace_wallets', fields: [
+      ['id', 'UUID', 'PK', 'PK'],
+      ['workspace_id', 'UUID', 'UNIQUE', 'One wallet per workspace'],
+      ['(no balance column)', '—', 'Used solely for FOR UPDATE serialization', 'Lock row only'],
+    ]},
+    { table: 'treasury_transactions', fields: [
+      ['workspace_id', 'UUID', 'FK CASCADE', 'Tenant'],
+      ['amount / type', 'NUMERIC(12,2) / enum', 'NOT NULL — income | expense', 'Direction'],
+      ['kind', 'enum', 'NOT NULL', 'deposit | box_allocation | box_return | project_expense | miscellaneous_expense | member_payout'],
+      ['source_type', 'enum', 'NOT NULL — central_wallet | box', 'Origin'],
+      ['source_box_id / target_box_id', 'UUID', 'FK SET NULL', 'Box endpoints'],
+      ['box_transaction_id', 'UUID', 'FK SET NULL', 'Linked box ledger row'],
+    ]},
+    { table: 'payouts', fields: [
+      ['workspace_id', 'UUID', 'FK CASCADE', 'Tenant'],
+      ['user_id', 'UUID', 'FK CASCADE', 'Recipient'],
+      ['source_box_id', 'UUID', 'FK CASCADE', 'Box charged'],
+      ['source_transaction_id', 'UUID', 'FK CASCADE', 'Driving expense'],
+      ['amount', 'NUMERIC(12,2)', 'NOT NULL', 'Per-person credit'],
+    ]},
+  ];
+
+  const dbTbody = document.getElementById('db-tbody');
+  dbSchema.forEach(group => {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'db-row bg-ink/[0.06]';
+    headerRow.dataset.table = group.table;
+    headerRow.innerHTML = `<td colspan="4" class="px-4 py-2 font-mono text-[11px] tracking-widest uppercase text-rust font-bold">${group.table}</td>`;
+    dbTbody.appendChild(headerRow);
+    group.fields.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'db-row border-b border-ink/5 hover:bg-ink/[0.03] transition-colors';
+      tr.dataset.table = group.table;
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-mono text-sm text-ink font-medium whitespace-nowrap">${f[0]}</td>
+        <td class="px-4 py-3 font-mono text-xs text-rust whitespace-nowrap">${f[1]}</td>
+        <td class="px-4 py-3 font-mono text-[11px] text-ink/60">${f[2]}</td>
+        <td class="px-4 py-3 text-sm text-ink/70">${f[3]}</td>
+      `;
+      dbTbody.appendChild(tr);
+    });
+  });
+
+  const dbFilters = document.getElementById('db-filters');
+  const filterOptions = [{ key: 'all', label: 'All Tables' }, ...dbSchema.map(g => ({ key: g.table, label: g.table }))];
+  filterOptions.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'db-filter-btn' + (i === 0 ? ' active-filter' : '');
+    b.textContent = opt.label;
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.db-filter-btn').forEach(x => x.classList.remove('active-filter'));
+      b.classList.add('active-filter');
+      document.querySelectorAll('.db-row').forEach(row => {
+        row.style.display = (opt.key === 'all' || row.dataset.table === opt.key) ? '' : 'none';
+      });
+    });
+    dbFilters.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------
+  // FAQ accordion
+  // ---------------------------------------------------------------
+  const faqs = [
+    {
+      qEn: 'Login works but every API call returns 401.',
+      qFa: 'ورود موفق است اما هر فراخوانی API خطای ۴۰۱ می‌دهد.',
+      aEn: 'Access token expired and refresh failed. Check budgetbox.refresh in localStorage, clock skew, and SECRET_KEY mismatch between processes.',
+      aFa: 'توکن دسترسی منقضی شده و رفرش شکست خورده است. budgetbox.refresh در localStorage، اختلاف ساعت و ناهماهنگی SECRET_KEY بین فرآیندها را بررسی کنید.',
+    },
+    {
+      qEn: 'Compose backend cannot reach Postgres.',
+      qFa: 'بک‌اند در Compose به Postgres وصل نمی‌شود.',
+      aEn: 'POSTGRES_HOST must be "postgres" inside Compose, not "localhost". Host-side Uvicorn uses localhost:5434.',
+      aFa: 'POSTGRES_HOST باید داخل Compose برابر "postgres" باشد نه "localhost". Uvicorn سمت host از localhost:5434 استفاده می‌کند.',
+    },
+    {
+      qEn: 'alembic upgrade fails.',
+      qFa: 'اجرای alembic upgrade شکست می‌خورد.',
+      aEn: 'Wrong database URL or revision graph. Confirm a linear history in alembic/versions; never skip revisions on production.',
+      aFa: 'آدرس دیتابیس یا گراف revision اشتباه است. از خطی بودن تاریخچه در alembic/versions مطمئن شوید؛ هرگز روی production revision را skip نکنید.',
+    },
+    {
+      qEn: 'A box shows only the owner after a membership change.',
+      qFa: 'یک باکس پس از تغییر عضویت فقط مالک را نشان می‌دهد.',
+      aEn: 'By design: BoxRead.members is box_members, not the whole team. Admins assign others via Manage members.',
+      aFa: 'طراحی عمدی است: BoxRead.members برابر box_members است نه کل تیم. ادمین‌ها از طریق Manage members افراد دیگر را تخصیص می‌دهند.',
+    },
+    {
+      qEn: 'Allocate fails with insufficient funds.',
+      qFa: 'تخصیص با خطای موجودی ناکافی شکست می‌خورد.',
+      aEn: 'Allocation spends the operating balance, not the total workspace budget. Deposit first, then allocate.',
+      aFa: 'تخصیص از بودجه جاری کسر می‌شود، نه کل بودجه workspace. ابتدا واریز کنید سپس تخصیص دهید.',
+    },
+    {
+      qEn: 'budget_limit is 0 but spending is still blocked?',
+      qFa: 'budget_limit صفر است اما هزینه هنوز مسدود می‌شود؟',
+      aEn: 'It must not be. Ceiling checks run only when budget_limit > 0. If the UI still shows a bar, the client helper isUnlimitedBudget is not wired on that surface.',
+      aFa: 'نباید این‌طور باشد. بررسی سقف فقط وقتی budget_limit > 0 است اجرا می‌شود. اگر UI هنوز نوار نشان می‌دهد، تابع کمکی isUnlimitedBudget در آن صفحه متصل نشده است.',
+    },
+    {
+      qEn: 'Project delete emptied the treasury unexpectedly.',
+      qFa: 'حذف پروژه به‌طور غیرمنتظره خزانه را خالی کرد.',
+      aEn: 'Hard delete removes project-related box transactions and treasury rows. Confirm with the user before calling DELETE /projects/{id}.',
+      aFa: 'حذف کامل، تراکنش‌های باکس مرتبط با پروژه و ردیف‌های خزانه را حذف می‌کند. پیش از فراخوانی DELETE /projects/{id} از کاربر تأیید بگیرید.',
+    },
+    {
+      qEn: 'Project analytics charts are empty.',
+      qFa: 'نمودارهای تحلیل پروژه خالی هستند.',
+      aEn: '/analytics needs deposits/expenses tagged with that project_id. Record a treasury deposit tagged to the project or a project expense.',
+      aFa: '/analytics به واریز/هزینه با project_id مشخص نیاز دارد. یک واریز خزانه با تگ پروژه یا یک هزینه پروژه ثبت کنید.',
+    },
+    {
+      qEn: 'CORS error from another origin.',
+      qFa: 'خطای CORS از یک origin دیگر.',
+      aEn: 'Add the exact origin to CORS_ORIGINS. The Vite default is http://localhost:5173 (not 127.0.0.1 unless it is listed too).',
+      aFa: 'origin دقیق را به CORS_ORIGINS اضافه کنید. پیش‌فرض Vite برابر http://localhost:5173 است (نه 127.0.0.1، مگر آن هم فهرست شود).',
+    },
+    {
+      qEn: 'Typecheck fails after adding i18n keys.',
+      qFa: 'بعد از افزودن کلیدهای i18n، typecheck شکست می‌خورد.',
+      aEn: 'TranslationKey is inferred from en.json. The fa.json file must contain the exact same key tree.',
+      aFa: 'TranslationKey از en.json استنتاج می‌شود. فایل fa.json باید دقیقاً همان درخت کلیدها را داشته باشد.',
+    },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqs.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'faq-item border border-ink/10 rounded-xl overflow-hidden bg-paperdark/30';
+    wrap.innerHTML = `
+      <button type="button" class="faq-toggle w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+        <span class="font-semibold text-sm text-ink faq-q-en">${item.qEn}</span>
+        <span class="font-semibold text-sm text-ink faq-q-fa hidden" style="font-family:'El Messiri',sans-serif;">${item.qFa}</span>
+        <i class="faq-chevron fa-solid fa-chevron-down text-ink/40 text-xs shrink-0"></i>
+      </button>
+      <div class="faq-answer px-5">
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-en">${item.aEn}</p>
+        <p class="text-sm text-ink/70 leading-relaxed pb-4 faq-a-fa hidden" style="font-family:'El Messiri',sans-serif;line-height:2.2;">${item.aFa}</p>
+      </div>
+    `;
+    wrap.querySelector('.faq-toggle').addEventListener('click', () => {
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(w => w.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+    faqList.appendChild(wrap);
+  });
+
+  // Override setLang to also handle FAQ bilingual
+  window._faqLangUpdate = function(isRtl) {
+    document.querySelectorAll('.faq-q-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-q-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+    document.querySelectorAll('.faq-a-en').forEach(el => el.classList.toggle('hidden', isRtl));
+    document.querySelectorAll('.faq-a-fa').forEach(el => el.classList.toggle('hidden', !isRtl));
+  };
+
+  const _setLang = setLang;
+  setLang = function(lang) {
+    _setLang(lang);
+    window._faqLangUpdate(lang === 'fa');
+  };
+
+  // ---------------------------------------------------------------
+  // Init — read ?lang= from URL
+  // ---------------------------------------------------------------
+  const urlLang = new URL(window.location.href).searchParams.get('lang');
+  showView('cover');
+  if (urlLang === 'fa') {
+    setLang('fa');
+  } else {
+    setLang('en');
+  }
+
+  // ---------------------------------------------------------------
+  // Mermaid
+  // ---------------------------------------------------------------
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      primaryColor: '#18181a',
+      primaryTextColor: '#f5f5f5',
+      primaryBorderColor: '#10b981',
+      lineColor: '#34d399',
+      secondaryColor: '#1c1c1e',
+      tertiaryColor: '#141416',
+      textColor: '#f5f5f5',
+      mainBkg: '#18181a',
+      nodeBorder: '#10b981',
+      clusterBkg: '#141416',
+      clusterBorder: '#3f3f46',
+      edgeLabelBackground: '#141416',
+      actorBkg: '#18181a',
+      actorBorder: '#10b981',
+      actorTextColor: '#f5f5f5',
+      actorLineColor: '#3f3f46',
+      signalColor: '#f5f5f5',
+      signalTextColor: '#f5f5f5',
+      labelBoxBkgColor: '#18181a',
+      labelBoxBorderColor: '#10b981',
+      labelTextColor: '#f5f5f5',
+      loopTextColor: '#f5f5f5',
+      noteBkgColor: '#1e1e21',
+      noteTextColor: '#f5f5f5',
+      noteBorderColor: '#10b981',
+      activationBorderColor: '#10b981',
+      activationBkgColor: '#1e1e21',
+      sequenceNumberColor: '#0a0a0a',
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '13px',
+    },
+  });
+  mermaid.run({ querySelector: '.mermaid' });
+</script>
+
+</body>
+</html>
